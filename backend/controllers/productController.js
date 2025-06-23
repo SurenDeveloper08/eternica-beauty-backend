@@ -1,0 +1,414 @@
+const Product = require('../models/productModel');
+const ErrorHandler = require('../utils/errorHandler')
+const catchAsyncError = require('../middlewares/catchAsyncError')
+const APIFeatures = require('../utils/apiFeatures');
+
+exports.getProductsByCategory = catchAsyncError(async (req, res, next) => {
+
+    try {
+        const { category } = req.query;
+
+        if (!category) {
+            return res.status(400).json({ success: false, message: "Category Id is required" });
+        }
+        const data = await Product.find({ category: category });
+
+        res.status(201).json({
+            success: true,
+            count: data.length,
+            data,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+})
+
+exports.getProductsBySubCategory = async (req, res) => {
+    try {
+        const { category, subcategory } = req.query;
+
+        if (!category || !subcategory) {
+            return res.status(400).json({ success: false, message: "Both Id are required" });
+        }
+
+        const data = await Product.find({ category: category, subCategory: subcategory });
+
+        res.status(200).json({
+            success: true,
+            count: data.length,
+            data,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.getProductsByrelCategory = async (req, res) => {
+    try {
+        const { id, category, subcategory } = req.query;
+
+        if (!category || !subcategory) {
+            return res.status(400).json({ success: false, message: "Both Id are required" });
+        }
+
+        const data = await Product.find({ category: category, subCategory: subcategory, _id: { $ne: id }, });
+
+        res.status(200).json({
+            success: true,
+            count: data.length,
+            data,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+//Get Products - /api/v1/products
+exports.getProducts = catchAsyncError(async (req, res, next) => {
+
+
+    const data = await Product.find();
+    if (!data) {
+        return res.status(400).json({ success: false, message: "Product not found" });
+    }
+    res.status(200).json({
+        success: true,
+        data
+    })
+})
+
+exports.searchProducts = catchAsyncError(async (req, res, next) => {
+
+    const { q } = req.query;
+
+    if (!q) {
+        return res.status(400).json({ message: 'Search query missing' });
+    }
+
+    try {
+        const regex = new RegExp(q, 'i'); // case-insensitive
+
+        const data = await Product.find({
+            $or: [
+                { productName: regex }
+                // { description: regex },
+                // { category: regex },
+            ]
+        }).limit(20);
+
+        res.status(200).json({
+            success: true,
+            data
+        })
+    } catch (error) {
+        console.error('Search error:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+})
+//Create Product - /api/v1/product/new
+exports.newProduct = catchAsyncError(async (req, res, next) => {
+    let images = [];
+    let image = '';
+    let BASE_URL = process.env.BACKEND_URL;
+    if (process.env.NODE_ENV === "production") {
+        BASE_URL = `${req.protocol}://${req.get("host")}`;
+    }
+
+    if (req.files.length > 0) {
+        req.files.forEach((file) => {
+            let url = `${BASE_URL}/uploads/product/${file.originalname}`;
+            images.push({ image: url });
+        });
+
+    }
+
+    req.body.image = images[0].image;
+    req.body.images = images;
+    //req.body.user = req.user.id;
+
+    // Parse JSON fields before creating the product
+    if (typeof req.body.specifications === "string") {
+        req.body.specifications = JSON.parse(req.body.specifications);
+    }
+    if (typeof req.body.sizes === "string") {
+        req.body.sizes = JSON.parse(req.body.sizes);
+    }
+
+    const product = await Product.create(req.body);
+
+    res.status(201).json({
+        success: true,
+        product,
+    });
+});
+
+//update product
+exports.updateProduct = catchAsyncError(async (req, res, next) => {
+    const productId = req.params.id;
+    let BASE_URL = process.env.BACKEND_URL;
+
+    if (process.env.NODE_ENV === "production") {
+        BASE_URL = `${req.protocol}://${req.get("host")}`;
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+        return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    // Parse specific fields if sent as strings
+    if (typeof req.body.specifications === "string") {
+        req.body.specifications = JSON.parse(req.body.specifications);
+    }
+    if (typeof req.body.sizes === "string") {
+        req.body.sizes = JSON.parse(req.body.sizes);
+    }
+
+    // Update all other fields dynamically
+    for (const key in req.body) {
+        if (key !== "imagesToRemove") {
+            product[key] = req.body[key];
+        }
+    }
+    // Remove selected images
+    const { imagesToRemove } = req.body;
+
+    let updatedImages = product.images || [];
+
+    if (imagesToRemove) {
+        updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img.image));
+
+    }
+
+    // Add new uploaded images
+    if (req.files && req.files.length > 0) {
+        req.files.forEach((file) => {
+            const imageUrl = `${BASE_URL}/uploads/product/${file.originalname}`;
+            updatedImages.push({ image: imageUrl });
+        });
+    }
+    if (updatedImages.length > 0) {
+        product.image = updatedImages[0].image;
+    }
+
+    product.images = updatedImages;
+
+    await product.save();
+
+    res.status(200).json({
+        success: true,
+        message: "Product updated",
+        product
+    });
+
+});
+
+
+//Get Single Product - api/v1/product/:id
+exports.getSingleProduct = catchAsyncError(async (req, res, next) => {
+    const data = await Product.findById(req.params.id);
+    // const data = await Product.findById(req.params.id).populate('reviews.user', 'name email');
+
+    if (!data) {
+        return next(new ErrorHandler('Product not found', 400));
+    }
+
+    res.status(201).json({
+        success: true,
+        data
+    })
+})
+
+
+// update home products
+exports.updateHighlights = catchAsyncError(async (req, res, next) => {
+
+    try {
+        const { isFeatured, isPopular, isBestDeal } = req.body;
+        const product = await Product.findByIdAndUpdate(
+            req.params.id,
+            { isFeatured, isPopular, isBestDeal },
+            { new: true }
+        );
+        res.json({ success: true, product });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+})
+
+// get by features product home page
+exports.getHomePageHighlights = catchAsyncError(async (req, res) => {
+    const [featured, popular, bestDeals] = await Promise.all([
+        Product.find({ isFeatured: true }).limit(10),
+        Product.find({ isPopular: true }).limit(10),
+        Product.find({ isBestDeal: true }).limit(10),
+    ]);
+
+    res.status(200).json({
+        success: true,
+        featured,
+        popular,
+        bestDeals
+    });
+});
+
+//Update Product - api/v1/product/:id
+// exports.updateProduct = catchAsyncError(async (req, res, next) => {
+//     let product = await Product.findById(req.params.id);
+
+//     //uploading images
+//     let images = []
+
+//     //if images not cleared we keep existing images
+//     if (req.body.imagesCleared === 'false') {
+//         images = product.images;
+//     }
+//     let BASE_URL = process.env.BACKEND_URL;
+//     if (process.env.NODE_ENV === "production") {
+//         BASE_URL = `${req.protocol}://${req.get('host')}`
+//     }
+
+//     if (req.files.length > 0) {
+//         req.files.forEach(file => {
+//             let url = `${BASE_URL}/uploads/product/${file.originalname}`;
+//             images.push({ image: url })
+//         })
+//     }
+
+
+//     req.body.images = images;
+
+//     if (!product) {
+//         return res.status(404).json({
+//             success: false,
+//             message: "Product not found"
+//         });
+//     }
+
+//     product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+//         new: true,
+//         runValidators: true
+//     })
+
+//     res.status(200).json({
+//         success: true,
+//         product
+//     })
+
+// })
+
+//Delete Product - api/v1/product/:id
+exports.deleteProduct = catchAsyncError(async (req, res, next) => {
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+        return res.status(404).json({
+            success: false,
+            message: "Product not found"
+        });
+    }
+
+    await product.remove();
+
+    res.status(200).json({
+        success: true,
+        message: "Product Deleted!"
+    })
+
+})
+
+//Create Review - api/v1/review
+exports.createReview = catchAsyncError(async (req, res, next) => {
+    const { productId, rating, comment } = req.body;
+
+    const review = {
+        user: req.user.id,
+        rating,
+        comment
+    }
+
+    const product = await Product.findById(productId);
+    //finding user review exists
+    const isReviewed = product.reviews.find(review => {
+        return review.user.toString() == req.user.id.toString()
+    })
+
+    if (isReviewed) {
+        //updating the  review
+        product.reviews.forEach(review => {
+            if (review.user.toString() == req.user.id.toString()) {
+                review.comment = comment
+                review.rating = rating
+            }
+
+        })
+
+    } else {
+        //creating the review
+        product.reviews.push(review);
+        product.numOfReviews = product.reviews.length;
+    }
+    //find the average of the product reviews
+    product.ratings = product.reviews.reduce((acc, review) => {
+        return review.rating + acc;
+    }, 0) / product.reviews.length;
+    product.ratings = isNaN(product.ratings) ? 0 : product.ratings;
+
+    await product.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+        success: true
+    })
+
+
+})
+
+//Get Reviews - api/v1/reviews?id={productId}
+exports.getReviews = catchAsyncError(async (req, res, next) => {
+    const product = await Product.findById(req.query.id).populate('reviews.user', 'name email');
+
+    res.status(200).json({
+        success: true,
+        reviews: product.reviews
+    })
+})
+
+//Delete Review - api/v1/review
+exports.deleteReview = catchAsyncError(async (req, res, next) => {
+    const product = await Product.findById(req.query.productId);
+
+    //filtering the reviews which does match the deleting review id
+    const reviews = product.reviews.filter(review => {
+        return review._id.toString() !== req.query.id.toString()
+    });
+    //number of reviews 
+    const numOfReviews = reviews.length;
+
+    //finding the average with the filtered reviews
+    let ratings = reviews.reduce((acc, review) => {
+        return review.rating + acc;
+    }, 0) / reviews.length;
+    ratings = isNaN(ratings) ? 0 : ratings;
+
+    //save the product document
+    await Product.findByIdAndUpdate(req.query.productId, {
+        reviews,
+        numOfReviews,
+        ratings
+    })
+    res.status(200).json({
+        success: true
+    })
+
+
+});
+
+// get admin products  - api/v1/admin/products
+exports.getAdminProducts = catchAsyncError(async (req, res, next) => {
+
+    const products = await Product.find();
+    res.status(200).send({
+        success: true,
+        products
+    })
+});
