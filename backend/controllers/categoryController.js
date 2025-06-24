@@ -292,7 +292,6 @@ exports.updateSubcategory = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
-
 exports.updateSubcategoryStatus = async (req, res) => {
   try {
     const { categoryId, subCategoryId } = req.params;
@@ -321,7 +320,6 @@ exports.updateSubcategoryStatus = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 exports.getSingleSubcategory = async (req, res, next) => {
   try {
     const { categoryId, subCategoryId } = req.params;
@@ -347,8 +345,6 @@ exports.getSingleSubcategory = async (req, res, next) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-// controllers/categoryController.js
 exports.deleteSubCategory = async (req, res) => {
   const { categoryId, subCategoryId } = req.params;
 

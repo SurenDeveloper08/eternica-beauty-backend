@@ -15,11 +15,19 @@ const posterSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  isActive: {
+    type: Boolean,
+    default: true 
+  },
+  sortOrder: {
+    type: Number,
+    default: 0
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
-const router = mongoose.model('Poster', posterSchema);
-module.exports = router;
+const Poster = mongoose.model('Poster', posterSchema);
+module.exports = Poster;

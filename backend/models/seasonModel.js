@@ -17,8 +17,15 @@ const saesonSchema = new mongoose.Schema({
   },
   subCategory: {
     type: String,
-    required: true,
     trim: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true 
+  },
+  sortOrder: {
+    type: Number,
+    default: 0
   },
   createdAt: {
     type: Date,

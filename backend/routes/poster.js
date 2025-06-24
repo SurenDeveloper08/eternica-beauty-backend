@@ -4,7 +4,12 @@ const path = require('path')
 
 const { 
     posterUpload,
-    getPosters
+    getPosters,
+    getPosterById,
+    getPostersAdmin,
+    updatePoster,
+    updatePosterStatus,
+    deletePoster
  } = require('../controllers/posterController');
 const router = express.Router();
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate')
@@ -18,8 +23,14 @@ const upload = multer({storage: multer.diskStorage({
     }
 }) })
 
-//Admin routes
-router.route('/admin/poster/upload').post(upload.array('images'), posterUpload);
-router.route('/poster/getall').get(getPosters);
+//Web routes
+router.route('/poster/getall').get(getPosters)
 
+//Admin routes
+router.route('/admin/poster/upload').post(isAuthenticatedUser,authorizeRoles('admin'),upload.array('images'), posterUpload);
+router.route('/admin/poster/:id').put(isAuthenticatedUser,authorizeRoles('admin'),upload.single('images'), updatePoster);
+router.route('/admin/poster/:id').get(isAuthenticatedUser,authorizeRoles('admin'), getPosterById)
+router.route('/admin/posters').get(isAuthenticatedUser,authorizeRoles('admin'),getPostersAdmin);
+router.route('/admin/poster/status/:id').put(isAuthenticatedUser,authorizeRoles('admin'),updatePosterStatus);
+router.route('/admin/poster/:id').delete(isAuthenticatedUser,authorizeRoles('admin'), deletePoster);
 module.exports = router;

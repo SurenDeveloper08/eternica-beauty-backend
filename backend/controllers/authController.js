@@ -1,4 +1,3 @@
-const { log } = require('console');
 const catchAsyncError = require('../middlewares/catchAsyncError');
 const User = require('../models/userModel');
 const sendEmail = require('../utils/email');
@@ -254,7 +253,7 @@ exports.forgotPassword = catchAsyncError(async (req, res, next) => {
     try {
         sendEmail({
             email: user.email,
-            subject: "JVLcart Password Recovery",
+            subject: "cart Password Recovery",
             message
         })
 
