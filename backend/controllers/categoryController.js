@@ -6,7 +6,7 @@ const catchAsyncError = require('../middlewares/catchAsyncError')
 const APIFeatures = require('../utils/apiFeatures');
 
 exports.createCategory = catchAsyncError(async (req, res, next) => {
-  const { name } = req.body;
+ const { name, sortOrder } = req.body;
   const slug = slugify(name, { lower: true, strict: true });
   const subcategories = JSON.parse(req.body.subcategories || "[]");
 
@@ -46,6 +46,7 @@ exports.createCategory = catchAsyncError(async (req, res, next) => {
     name,
     slug,
     image,
+    sortOrder,
     subcategories: validSubcats
   });
 
@@ -210,6 +211,7 @@ exports.getAllSubcategories = async (req, res) => {
 };
 exports.updateCategory = catchAsyncError(async (req, res, next) => {
   const { name, sortOrder: categorySortOrder } = req.body;
+ 
   const { id } = req.params;
  
   const slug = slugify(name, { lower: true, strict: true });

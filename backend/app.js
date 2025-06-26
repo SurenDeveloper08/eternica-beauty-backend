@@ -32,6 +32,7 @@ const season = require('./routes/season')
 const subscribe = require('./routes/subscribe')
 const cart = require('./routes/cart')
 const dashboard = require('./routes/dashboard')
+const highlight = require('./routes/ProductHighlight')
 app.use('/api/v1/', products);
 app.use('/api/v1/', category);
 app.use('/api/v1/', auth);
@@ -43,6 +44,7 @@ app.use('/api/v1/', subscribe);
 app.use('/api/v1/', cart);
 app.use('/api/v1/', order);
 app.use('/api/v1/', dashboard)
+app.use('/api/v1/', highlight)
 // app.use('/api/v1/',payment);
 
 

@@ -21,7 +21,6 @@ exports.createOrder = catchAsyncError(async (req, res, next) => {
         const adminEmail = process.env.ADMIN_EMAIL;
         const today = moment().format('DDMMYYYY'); // for orderNumber
         const now = new Date(); // actual date field
-
         // Step 1: Get today's counter
         let counter = await OrderCounter.findOne({ date: today });
 
