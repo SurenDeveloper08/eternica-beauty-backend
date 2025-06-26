@@ -9,7 +9,7 @@ const cors = require('cors');
 dotenv.config({ path: path.join(__dirname, "config/config.env") });
 
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL,
     credentials: true
 }));
 
