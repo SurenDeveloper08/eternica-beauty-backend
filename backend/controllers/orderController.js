@@ -222,12 +222,12 @@ exports.updateOrder = catchAsyncError(async (req, res, next) => {
         await sendEmail(adminEmail, adminSubject, 'admin', order, status);
     }
 
-
     res.status(200).json({
         success: true,
         message: 'Order status updated and emails sent',
     });
 });
+
 
 //Create New Order - api/v1/order/new
 exports.newOrder = catchAsyncError(async (req, res, next) => {
