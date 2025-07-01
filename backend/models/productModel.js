@@ -13,7 +13,12 @@ const specificationSchema = new mongoose.Schema({
 const descriptionSchema = new mongoose.Schema({
     description: String
 });
-
+const seoSchema = new mongoose.Schema({
+  metaTitle: { type: String },
+  metaDescription: { type: String },
+  metaKeywords: { type: String },
+  canonicalUrl: { type: String }
+});
 const productSchema = new mongoose.Schema({
     productName: { type: String, required: true },
     category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
@@ -24,7 +29,7 @@ const productSchema = new mongoose.Schema({
     specifications: [specificationSchema],
     colors: [{ type: String }],
     sizes: [sizeSchema],
-    stock: { type: Boolean, default: true },
+    stock: { type: Number, default: true },
     deliveryDays: { type: Number, required: true },
     price: { type: Number, required: true },
     oldPrice: { type: Number },
@@ -36,9 +41,7 @@ const productSchema = new mongoose.Schema({
             required: true
         }
     }],
-    isFeatured: { type: Boolean, default: false },
-    isPopular: { type: Boolean, default: false },
-    isBestDeal: { type: Boolean, default: false },
+    seo: seoSchema,
 }, { timestamps: true });
 
 module.exports = mongoose.model("Product", productSchema);

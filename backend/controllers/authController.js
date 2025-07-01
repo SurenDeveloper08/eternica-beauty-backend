@@ -1,3 +1,4 @@
+const { log } = require('console');
 const catchAsyncError = require('../middlewares/catchAsyncError');
 const User = require('../models/userModel');
 const sendEmail = require('../utils/email');
@@ -73,7 +74,6 @@ exports.logoutUser = (req, res, next) => {
 exports.addAddress = catchAsyncError(async (req, res, next) => {
 
     try {
-
         const userId = req.user._id;
 
         const {
@@ -97,7 +97,6 @@ exports.addAddress = catchAsyncError(async (req, res, next) => {
             });
         }
 
-
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
@@ -105,9 +104,9 @@ exports.addAddress = catchAsyncError(async (req, res, next) => {
         if (isDefault) {
             user.addresses.forEach(addr => (addr.isDefault = false));
         }
-
+        const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
         user.addresses.push({
-            name,
+            name: capitalizedName,
             phone,
             email,
             address,
@@ -116,7 +115,6 @@ exports.addAddress = catchAsyncError(async (req, res, next) => {
             zipCode,
             isDefault: !!isDefault
         });
-
         await user.save();
 
         res.status(200).json({
@@ -137,7 +135,7 @@ exports.getAddress = catchAsyncError(async (req, res, next) => {
         if (!data) return res.status(404).json({ success: false, message: 'User not found.' });
         return res.status(200).json({ success: true, data });
     } catch (error) {
-         return res.status(500).json({ success: false, message: "Server error" });
+        return res.status(500).json({ success: false, message: "Server error" });
     }
 })
 
@@ -203,9 +201,9 @@ exports.updateAddress = catchAsyncError(async (req, res, next) => {
         if (isDefault) {
             user.addresses.forEach(addr => (addr.isDefault = false));
         }
-
+        const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
         // Update address fields
-        addressToUpdate.name = name;
+        addressToUpdate.name = capitalizedName;
         addressToUpdate.phone = phone;
         addressToUpdate.email = email;
         addressToUpdate.address = address;
@@ -213,7 +211,7 @@ exports.updateAddress = catchAsyncError(async (req, res, next) => {
         addressToUpdate.city = city;
         addressToUpdate.zipCode = zipCode;
         addressToUpdate.isDefault = !!isDefault;
-        
+
         await user.save();
 
         res.status(200).json({

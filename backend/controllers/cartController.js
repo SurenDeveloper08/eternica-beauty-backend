@@ -3,48 +3,122 @@ const User = require('../models/userModel');
 const Product = require('../models/productModel');
 const ErrorHandler = require('../utils/errorHandler');
 
-exports.addToCart = catchAsyncError(async (req, res, next) => {
+// exports.addToCart = catchAsyncError(async (req, res, next) => {
 
+//     try {
+//         const { id } = req.body;
+//         const qty = req.query?.qty;
+//         const user = await User.findById(req.user._id);
+
+
+//         if (!user) return next(new ErrorHandler("User not found", 404));
+
+//         const exists = user.cart.find(item => item._id.toString() === id);
+
+//         if (exists) {
+//             const total = Number(exists?.quantity) + Number(qty);
+//             if (exists.quantity > 10 || total > 10) {
+
+//                 return res.status(201).json({
+//                     success: false,
+//                     message: "Maximum quantity 10."
+//                 });
+//             }
+//             else {
+//                 exists.quantity = total
+//             }
+
+//         } else {
+//             user.cart.push({ _id: id, quantity: qty });
+//         }
+
+
+
+//         await user.save();
+
+//         res.status(200).json({
+//             success: true,
+//             message: "Cart Added",
+//         });
+
+//     } catch (err) {
+//         next(err);
+//     }
+// });
+exports.addToCart = catchAsyncError(async (req, res, next) => {
     try {
         const { id } = req.body;
-        const qty = req.query?.qty;
+        const qty = parseInt(req.query?.qty) || 1;
+
         const user = await User.findById(req.user._id);
-
-
         if (!user) return next(new ErrorHandler("User not found", 404));
+
+        const product = await Product.findById(id);
+        if (!product) return next(new ErrorHandler("Product not found", 404));
+
+        if (!product.stock || product.stock < qty) {
+            return res.status(400).json({
+                success: false,
+                message: `Only ${product.stock} item(s) in stock.`,
+            });
+        }
 
         const exists = user.cart.find(item => item._id.toString() === id);
 
         if (exists) {
-            const total = Number(exists?.quantity) + Number(qty);
-            if (exists.quantity > 10 || total > 10) {
+            const totalQty = exists.quantity + qty;
 
-                return res.status(201).json({
+            if (totalQty > 10) {
+                return res.status(400).json({
                     success: false,
-                    message: "Maximum quantity 10."
+                    message: "Maximum quantity per item is 10.",
                 });
             }
-            else {
-                exists.quantity = total
+
+            if (totalQty > product.stock) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Only ${product.stock} item(s) available. You already added ${exists.quantity}.`,
+                });
             }
 
+            exists.quantity = totalQty;
         } else {
+            if (qty > 10) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Maximum quantity per item is 10.",
+                });
+            }
+
             user.cart.push({ _id: id, quantity: qty });
         }
 
-
-
         await user.save();
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            message: "Cart Added",
+            message: "Cart added successfully.",
         });
-
     } catch (err) {
         next(err);
     }
 });
+// GET /api/v1/cart/qty/:productId
+exports.getCartQty = catchAsyncError(async (req, res, next) => {
+    const productId = req.params.id;
+    
+    const user = await User.findById(req.user._id);
+
+    if (!user) return next(new ErrorHandler("User not found", 404));
+
+    const item = user.cart.find((item) => item._id.toString() === productId);
+    res.status(200).json({
+        success: true,
+        qty: item ? item.quantity : 0,
+    });
+});
+
 
 
 exports.getCart = async (req, res, next) => {
@@ -73,7 +147,7 @@ exports.getCart = async (req, res, next) => {
                 if (typeof product.stock === 'boolean') {
                     inStock = product.stock;
                 } else if (typeof product.stock === 'number') {
-                    inStock = product.stock > 0;
+                     inStock = product.stock > 0;
                 }
 
                 const subtotal = product.price * item.quantity;
@@ -98,7 +172,7 @@ exports.getCart = async (req, res, next) => {
         const total = parseFloat((totalPrice + vat).toFixed(2));
         deliveryFee = Number(totalPrice) < 300 ? 30 : 0;
         totalPrice = totalPrice + deliveryFee;
-
+       
         res.status(200).json({
             success: true,
             count: filteredCart.length,

@@ -6,7 +6,7 @@ const catchAsyncError = require('../middlewares/catchAsyncError')
 const APIFeatures = require('../utils/apiFeatures');
 
 exports.createCategory = catchAsyncError(async (req, res, next) => {
- const { name, sortOrder } = req.body;
+  const { name, sortOrder } = req.body;
   const slug = slugify(name, { lower: true, strict: true });
   const subcategories = JSON.parse(req.body.subcategories || "[]");
 
@@ -41,13 +41,20 @@ exports.createCategory = catchAsyncError(async (req, res, next) => {
   if (req.file) {
     image = `${BASE_URL}/uploads/category/${req.file.filename}`;
   }
+  let seo = {
+    metaTitle: req.body.metaTitle || '',
+    metaDescription: req.body.metaDescription || '',
+    metaKeywords: req.body.metaKeywords || '',
+    canonicalUrl: req.body.canonicalUrl || ''
+  };
 
   const category = await Category.create({
     name,
     slug,
     image,
     sortOrder,
-    subcategories: validSubcats
+    subcategories: validSubcats,
+    seo
   });
 
   res.status(201).json({ success: true, category });
@@ -91,7 +98,7 @@ exports.getAllCategories = async (req, res) => {
 exports.addSubcategory = async (req, res, next) => {
   try {
     const { categoryId } = req.params;
-
+  
     // Parse subcategories JSON string
     const subcategories = JSON.parse(req.body.subcategories);
 
@@ -108,11 +115,11 @@ exports.addSubcategory = async (req, res, next) => {
       if (!sub.name) {
         throw new Error("Each subcategory must have a name");
       }
-
       category.subcategories.push({
         name: sub.name,
         slug: slugify(sub.name, { lower: true, strict: true }),
         sortOrder: sub.sortOrder || 0,
+        seo: sub.seo || {}
       });
     });
 
@@ -211,9 +218,9 @@ exports.getAllSubcategories = async (req, res) => {
 };
 exports.updateCategory = catchAsyncError(async (req, res, next) => {
   const { name, sortOrder: categorySortOrder } = req.body;
- 
+
   const { id } = req.params;
- 
+
   const slug = slugify(name, { lower: true, strict: true });
 
   let BASE_URL = process.env.BACKEND_URL;
@@ -225,12 +232,18 @@ exports.updateCategory = catchAsyncError(async (req, res, next) => {
   if (req.file) {
     image = `${BASE_URL}/uploads/category/${req.file.filename}`;
   }
-
+  let seo = {
+    metaTitle: req.body.metaTitle || '',
+    metaDescription: req.body.metaDescription || '',
+    metaKeywords: req.body.metaKeywords || '',
+    canonicalUrl: req.body.canonicalUrl || ''
+  };
   // Prepare update object
   const updateData = {
     name,
     slug,
     sortOrder: categorySortOrder ?? 0,
+    seo
   };
 
   if (image) {
@@ -265,7 +278,8 @@ exports.updateSubcategory = async (req, res) => {
   try {
     const { categoryId, subCategoryId } = req.params;
     const { name, sortOrder } = req.body;
-
+    const seo = typeof req.body.seo === 'string' ? JSON.parse(req.body.seo) : req.body.seo;
+   
     // Find the main category
     const category = await Category.findById(categoryId);
     if (!category) {
@@ -276,12 +290,20 @@ exports.updateSubcategory = async (req, res) => {
     if (!subcategory) {
       return res.status(404).json({ success: false, error: "Subcategory not found" });
     }
-
     // Update subcategory fields
+
     subcategory.name = name;
     subcategory.slug = slugify(name, { lower: true, strict: true });
     if (sortOrder !== undefined) subcategory.sortOrder = sortOrder;
-
+    if (seo) {
+      subcategory.seo = {
+        metaTitle: seo.metaTitle || '',
+        metaDescription: seo.metaDescription || '',
+        metaKeywords: seo.metaKeywords || '',
+        canonicalUrl: seo.canonicalUrl || ''
+      };
+    }
+    
     await category.save();
 
     return res.status(200).json({
@@ -327,18 +349,17 @@ exports.getSingleSubcategory = async (req, res, next) => {
     const { categoryId, subCategoryId } = req.params;
 
     const category = await Category.findById(categoryId);
-      console.log( categoryId, subCategoryId );
-      
+
     if (!category) {
       return res.status(404).json({ success: false, message: "Category not found" });
     }
 
     const subcategory = category.subcategories.id(subCategoryId);
-     
+
     if (!subcategory) {
       return res.status(404).json({ success: false, message: "Subcategory not found" });
     }
-   res.status(200).json({
+    res.status(200).json({
       success: true,
       data: subcategory
     });

@@ -1,44 +1,79 @@
 const Product = require('../models/productModel');
+const Category = require('../models/categoryModel');
 const ErrorHandler = require('../utils/errorHandler')
 const catchAsyncError = require('../middlewares/catchAsyncError')
 const APIFeatures = require('../utils/apiFeatures');
 
 exports.getProductsByCategory = catchAsyncError(async (req, res, next) => {
+ try {
+    const { categoryId } = req.query;
 
-    try {
-        const { category } = req.query;
+    // 1. Get the category and its SEO
+    const category = await Category.findById(categoryId);
 
-        if (!category) {
-            return res.status(400).json({ success: false, message: "Category Id is required" });
-        }
-        const data = await Product.find({ category: category });
-
-        res.status(201).json({
-            success: true,
-            count: data.length,
-            data,
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+    if (!category) {
+      return res.status(404).json({ success: false, message: "Category not found" });
     }
+
+    // 2. Get all products under that category
+    const data = await Product.find({ category: categoryId });
+
+    // 3. Return combined response
+    res.status(200).json({
+      success: true,
+      seo: category.seo,
+      category: {
+        _id: category._id,
+        name: category.name,
+        slug: category.slug,
+      },
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 })
 
 exports.getProductsBySubCategory = async (req, res) => {
     try {
-        const { category, subcategory } = req.query;
-
-        if (!category || !subcategory) {
-            return res.status(400).json({ success: false, message: "Both Id are required" });
+        
+        const { categoryId, subcategoryId } = req.query;
+         
+        if (!categoryId || !subcategoryId) {
+            return res.status(400).json({ success: false, message: "Both category and subcategory IDs are required" });
         }
 
-        const data = await Product.find({ category: category, subCategory: subcategory });
+        // Fetch products
+        const data = await Product.find({ category: categoryId, subCategory: subcategoryId });
+
+        // Fetch category and subcategory SEO
+        const categoryDoc = await Category.findById(categoryId);
+        if (!categoryDoc) {
+            return res.status(404).json({ success: false, message: "Category not found" });
+        }
+
+        const subCat = categoryDoc.subcategories.id(subcategoryId);
+        if (!subCat) {
+            return res.status(404).json({ success: false, message: "Subcategory not found" });
+        }
+
+        // Prepare SEO data (fallback to category name if missing)
+        const seo = {
+            metaTitle: subCat.seo?.metaTitle || subCat.name,
+            metaDescription: subCat.seo?.metaDescription || `Browse ${subCat.name} products.`,
+            metaKeywords: subCat.seo?.metaKeywords || subCat.name,
+            canonicalUrl: subCat.seo?.canonicalUrl || ''
+        };
 
         res.status(200).json({
             success: true,
             count: data.length,
             data,
+            seo
         });
+
     } catch (error) {
+        console.error("Error fetching subcategory products:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -119,7 +154,6 @@ exports.newProduct = catchAsyncError(async (req, res, next) => {
             let url = `${BASE_URL}/uploads/product/${file.originalname}`;
             images.push({ image: url });
         });
-
     }
 
     req.body.image = images[0].image;
@@ -133,7 +167,12 @@ exports.newProduct = catchAsyncError(async (req, res, next) => {
     if (typeof req.body.sizes === "string") {
         req.body.sizes = JSON.parse(req.body.sizes);
     }
-
+    product.seo = {
+        metaTitle: req.body.metaTitle || '',
+        metaDescription: req.body.metaDescription || '',
+        metaKeywords: req.body.metaKeywords || '',
+        canonicalUrl: req.body.canonicalUrl || ''
+    };
     const product = await Product.create(req.body);
 
     res.status(201).json({
@@ -192,7 +231,12 @@ exports.updateProduct = catchAsyncError(async (req, res, next) => {
     }
 
     product.images = updatedImages;
-
+    product.seo = {
+        metaTitle: req.body.metaTitle || '',
+        metaDescription: req.body.metaDescription || '',
+        metaKeywords: req.body.metaKeywords || '',
+        canonicalUrl: req.body.canonicalUrl || ''
+    };
     await product.save();
 
     res.status(200).json({
@@ -202,7 +246,6 @@ exports.updateProduct = catchAsyncError(async (req, res, next) => {
     });
 
 });
-
 
 //Get Single Product - api/v1/product/:id
 exports.getSingleProduct = catchAsyncError(async (req, res, next) => {
@@ -251,51 +294,6 @@ exports.getHomePageHighlights = catchAsyncError(async (req, res) => {
         bestDeals
     });
 });
-
-//Update Product - api/v1/product/:id
-// exports.updateProduct = catchAsyncError(async (req, res, next) => {
-//     let product = await Product.findById(req.params.id);
-
-//     //uploading images
-//     let images = []
-
-//     //if images not cleared we keep existing images
-//     if (req.body.imagesCleared === 'false') {
-//         images = product.images;
-//     }
-//     let BASE_URL = process.env.BACKEND_URL;
-//     if (process.env.NODE_ENV === "production") {
-//         BASE_URL = `${req.protocol}://${req.get('host')}`
-//     }
-
-//     if (req.files.length > 0) {
-//         req.files.forEach(file => {
-//             let url = `${BASE_URL}/uploads/product/${file.originalname}`;
-//             images.push({ image: url })
-//         })
-//     }
-
-
-//     req.body.images = images;
-
-//     if (!product) {
-//         return res.status(404).json({
-//             success: false,
-//             message: "Product not found"
-//         });
-//     }
-
-//     product = await Product.findByIdAndUpdate(req.params.id, req.body, {
-//         new: true,
-//         runValidators: true
-//     })
-
-//     res.status(200).json({
-//         success: true,
-//         product
-//     })
-
-// })
 
 //Delete Product - api/v1/product/:id
 exports.deleteProduct = catchAsyncError(async (req, res, next) => {

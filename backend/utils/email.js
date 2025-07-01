@@ -97,11 +97,34 @@ const generateItemsTable = (items) => {
 
 
 
-const sendEmail = async (to, subject, type, data) => {
-    
-    const templatePath = path.join(__dirname, `../templates/${type}.html`);
-    const rawHtml = fs.readFileSync(templatePath, 'utf-8');
+const sendEmail = async (to, subject, type, data, status) => {
 
+    let templatePath = '';
+   
+    switch (status) {
+        case 'Ordered':
+            templatePath = path.join(__dirname, `../templates/${type}.html`);
+            break;
+        case 'Shipped':
+           
+        templatePath = path.resolve(__dirname, '../templates/Shipped.html');
+            break;
+        case 'Out for Delivery':
+           templatePath = path.resolve(__dirname, '../templates/OutforDelivery.html');
+            break;
+        case 'Delivered':
+            templatePath = path.resolve(__dirname, `../templates/Delivered${type}.html`);
+            break;
+        default:
+            return; // Exit early if no template
+    }
+
+    // Validate if file exists
+    if (!fs.existsSync(templatePath)) {
+        console.error(`❌ Email template not found: ${templatePath}`);
+        return;
+    }
+   const rawHtml = fs.readFileSync(templatePath, 'utf-8');
     const html = injectData(rawHtml, {
         customerName: data?.shippingInfo?.name,
         orderNumber: data?.orderNumber,
@@ -110,11 +133,11 @@ const sendEmail = async (to, subject, type, data) => {
         country: data?.shippingInfo?.country,
         phone: data?.shippingInfo?.phone,
         email: data?.shippingInfo?.email,
-        deliveryCharge: data?.deliveryCharge ? `AED ` + data?.deliveryCharge : 'Free',
+        deliveryCharge: data?.deliveryCharge ? `AED ${data.deliveryCharge}` : 'Free',
         total: data.amount,
         itemsTable: generateItemsTable(data.items),
     });
-    const transporter = nodemailer.createTransport({
+   const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: process.env.SMTP_PORT,
         auth: {
@@ -122,15 +145,15 @@ const sendEmail = async (to, subject, type, data) => {
             pass: process.env.SMTP_PASS,
         },
     });
-
-    const mailOptions = {
+   const mailOptions = {
         from: `"SPA STORE" <${process.env.SMTP_EMAIL}>`,
         to,
         subject,
-        html
+        html,
     };
 
     await transporter.sendMail(mailOptions);
-};
+   };
+
 
 module.exports = sendEmail;
