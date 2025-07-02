@@ -5,40 +5,40 @@ const catchAsyncError = require('../middlewares/catchAsyncError')
 const APIFeatures = require('../utils/apiFeatures');
 
 exports.getProductsByCategory = catchAsyncError(async (req, res, next) => {
- try {
-    const { categoryId } = req.query;
+    try {
+        const { categoryId } = req.query;
 
-    // 1. Get the category and its SEO
-    const category = await Category.findById(categoryId);
+        // 1. Get the category and its SEO
+        const category = await Category.findById(categoryId);
 
-    if (!category) {
-      return res.status(404).json({ success: false, message: "Category not found" });
+        if (!category) {
+            return res.status(404).json({ success: false, message: "Category not found" });
+        }
+
+        // 2. Get all products under that category
+        const data = await Product.find({ category: categoryId });
+
+        // 3. Return combined response
+        res.status(200).json({
+            success: true,
+            seo: category.seo,
+            category: {
+                _id: category._id,
+                name: category.name,
+                slug: category.slug,
+            },
+            data,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
-
-    // 2. Get all products under that category
-    const data = await Product.find({ category: categoryId });
-
-    // 3. Return combined response
-    res.status(200).json({
-      success: true,
-      seo: category.seo,
-      category: {
-        _id: category._id,
-        name: category.name,
-        slug: category.slug,
-      },
-      data,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
 })
 
 exports.getProductsBySubCategory = async (req, res) => {
     try {
-        
+
         const { categoryId, subcategoryId } = req.query;
-         
+
         if (!categoryId || !subcategoryId) {
             return res.status(400).json({ success: false, message: "Both category and subcategory IDs are required" });
         }
@@ -143,7 +143,6 @@ exports.searchProducts = catchAsyncError(async (req, res, next) => {
 //Create Product - /api/v1/product/new
 exports.newProduct = catchAsyncError(async (req, res, next) => {
     let images = [];
-    let image = '';
     let BASE_URL = process.env.BACKEND_URL;
     if (process.env.NODE_ENV === "production") {
         BASE_URL = `${req.protocol}://${req.get("host")}`;
@@ -156,9 +155,8 @@ exports.newProduct = catchAsyncError(async (req, res, next) => {
         });
     }
 
-    req.body.image = images[0].image;
+    req.body.image = images[0]?.image || '';
     req.body.images = images;
-    //req.body.user = req.user.id;
 
     // Parse JSON fields before creating the product
     if (typeof req.body.specifications === "string") {
@@ -167,12 +165,14 @@ exports.newProduct = catchAsyncError(async (req, res, next) => {
     if (typeof req.body.sizes === "string") {
         req.body.sizes = JSON.parse(req.body.sizes);
     }
-    product.seo = {
+
+    req.body.seo = {
         metaTitle: req.body.metaTitle || '',
         metaDescription: req.body.metaDescription || '',
         metaKeywords: req.body.metaKeywords || '',
         canonicalUrl: req.body.canonicalUrl || ''
     };
+
     const product = await Product.create(req.body);
 
     res.status(201).json({
@@ -180,6 +180,7 @@ exports.newProduct = catchAsyncError(async (req, res, next) => {
         product,
     });
 });
+
 
 //update product
 exports.updateProduct = catchAsyncError(async (req, res, next) => {
