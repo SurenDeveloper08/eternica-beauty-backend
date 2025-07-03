@@ -9,6 +9,7 @@ const seoSchema = new mongoose.Schema({
 const subCategorySchema = new mongoose.Schema({
   name: { type: String, required: true },
   slug: { type: String, required: true, lowercase: true, trim: true },
+  image: { type: String },
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
   seo: seoSchema,

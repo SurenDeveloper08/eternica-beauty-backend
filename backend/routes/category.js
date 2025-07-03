@@ -40,13 +40,13 @@ router.route('/admin/category/:id').get(isAuthenticatedUser, authorizeRoles('adm
 router.route('/admin/categories').post(isAuthenticatedUser, authorizeRoles('admin'), upload.single('image'), createCategory);
 router.route('/admin/categories/:id').put(isAuthenticatedUser, authorizeRoles('admin'), upload.single('image'), updateCategory);
 router.route('/admin/category/status/:id').put(isAuthenticatedUser, authorizeRoles('admin'), upload.single('image'), updateCategoryStatus);
-router.route('/admin/subcategory/:categoryId').post(isAuthenticatedUser, authorizeRoles('admin'),upload.none(), addSubcategory);
+router.route('/admin/subcategory/:categoryId').post(isAuthenticatedUser, authorizeRoles('admin'), upload.single('image'), addSubcategory);
 router.route('/admin/subcategories/all').get(isAuthenticatedUser, authorizeRoles('admin'), getAllSubcategories);
 router.route('/admin/category/:id').delete(isAuthenticatedUser, authorizeRoles('admin'), deleteCategory);
 router.route('/admin/subcategory/:categoryId/:subCategoryId').delete(isAuthenticatedUser, authorizeRoles('admin'), deleteSubCategory);
 router.route('/categories/subcategory/:categoryId').get(getSubcategory);
-router.route('/admin/subcategory/:categoryId/:subCategoryId').put(isAuthenticatedUser, authorizeRoles('admin'),upload.none(), updateSubcategory);
-router.route('/admin/subcategory/:categoryId/:subCategoryId/status').put(isAuthenticatedUser, authorizeRoles('admin'),updateSubcategoryStatus);
+router.route('/admin/subcategory/:categoryId/:subCategoryId').put(isAuthenticatedUser, authorizeRoles('admin'), upload.single('image'), updateSubcategory);
+router.route('/admin/subcategory/:categoryId/:subCategoryId/status').put(isAuthenticatedUser, authorizeRoles('admin'), upload.single('image'), updateSubcategoryStatus);
 router.route('/admin/subcategory/:categoryId/:subCategoryId').get(isAuthenticatedUser, authorizeRoles('admin'), getSingleSubcategory);
 
 module.exports = router;

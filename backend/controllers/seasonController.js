@@ -5,7 +5,7 @@ const ErrorHandler = require('../utils/errorHandler');
 exports.seasonUpload = catchAsyncError(async (req, res, next) => {
 
     const files = req.files;
-     const { names, category, subCategory, sortOrder } = req.body;
+     const { name, category, subCategory, sortOrder } = req.body;
     let banners = [];
 
     let BASE_URL = process.env.BACKEND_URL;
@@ -13,9 +13,10 @@ exports.seasonUpload = catchAsyncError(async (req, res, next) => {
         BASE_URL = `${req.protocol}://${req.get("host")}`;
     }
 
-     const safeNames = Array.isArray(names) ? names : [names];
+     const safeNames = Array.isArray(name) ? name : [name];
     const safeCategory = Array.isArray(category) ? category : [category];
     const safeSubCategory = Array.isArray(subCategory) ? subCategory : [subCategory];
+    const safeSortOrder = Array.isArray(sortOrder) ? sortOrder : [sortOrder];
 
     for (let i = 0; i < files.length; i++) {
         if (safeNames[i] && safeCategory[i] && safeSubCategory[i]) {
@@ -24,6 +25,7 @@ exports.seasonUpload = catchAsyncError(async (req, res, next) => {
                 category: safeCategory[i],
                 subCategory: safeSubCategory[i],
                 imageUrl: `${BASE_URL}/uploads/season/${files[i].filename}`,
+                sortOrder: parseInt(safeSortOrder[i]) || 0,
             });
         }
         else if (safeNames[i] && safeCategory[i] && !safeSubCategory[i]) {
@@ -31,7 +33,7 @@ exports.seasonUpload = catchAsyncError(async (req, res, next) => {
                 name: safeNames[i],
                 category: safeCategory[i],
                 imageUrl: `${BASE_URL}/uploads/season/${files[i].filename}`,
-                sortOrder: parseInt(sortOrder[i]) || 0,
+                sortOrder: parseInt(safeSortOrder[i]) || 0,
             });
         }
     }

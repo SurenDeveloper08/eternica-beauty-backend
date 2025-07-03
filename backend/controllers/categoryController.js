@@ -98,7 +98,7 @@ exports.getAllCategories = async (req, res) => {
 exports.addSubcategory = async (req, res, next) => {
   try {
     const { categoryId } = req.params;
-  
+
     // Parse subcategories JSON string
     const subcategories = JSON.parse(req.body.subcategories);
 
@@ -110,18 +110,34 @@ exports.addSubcategory = async (req, res, next) => {
     if (!category) {
       return res.status(404).json({ error: "Category not found" });
     }
+    let BASE_URL = process.env.BACKEND_URL;
+    if (process.env.NODE_ENV === "production") {
+      BASE_URL = `${req.protocol}://${req.get("host")}`;
+    }
 
-    subcategories.forEach(sub => {
-      if (!sub.name) {
-        throw new Error("Each subcategory must have a name");
-      }
-      category.subcategories.push({
-        name: sub.name,
-        slug: slugify(sub.name, { lower: true, strict: true }),
-        sortOrder: sub.sortOrder || 0,
-        seo: sub.seo || {}
-      });
-    });
+   
+   subcategories.forEach(sub => {
+  if (!sub.name) {
+    throw new Error("Each subcategory must have a name");
+  }
+
+  // Use uploaded image if available, else fallback to sub.image (only if it's a string)
+  const subImage =
+    req.file
+      ? `${BASE_URL}/uploads/category/${req.file.filename}`
+      : typeof sub.image === "string"
+        ? sub.image
+        : "";
+
+  category.subcategories.push({
+    name: sub.name,
+    image: subImage,
+    slug: slugify(sub.name, { lower: true, strict: true }),
+    sortOrder: sub.sortOrder || 0,
+    seo: sub.seo || {}
+  });
+});
+
 
     await category.save();
 
@@ -221,8 +237,6 @@ exports.updateCategory = catchAsyncError(async (req, res, next) => {
 
   const { id } = req.params;
 
-  const slug = slugify(name, { lower: true, strict: true });
-
   let BASE_URL = process.env.BACKEND_URL;
   if (process.env.NODE_ENV === "production") {
     BASE_URL = `${req.protocol}://${req.get("host")}`;
@@ -232,6 +246,7 @@ exports.updateCategory = catchAsyncError(async (req, res, next) => {
   if (req.file) {
     image = `${BASE_URL}/uploads/category/${req.file.filename}`;
   }
+  const slug = slugify(name, { lower: true, strict: true });
   let seo = {
     metaTitle: req.body.metaTitle || '',
     metaDescription: req.body.metaDescription || '',
@@ -278,8 +293,18 @@ exports.updateSubcategory = async (req, res) => {
   try {
     const { categoryId, subCategoryId } = req.params;
     const { name, sortOrder } = req.body;
+    let BASE_URL = process.env.BACKEND_URL;
+    if (process.env.NODE_ENV === "production") {
+      BASE_URL = `${req.protocol}://${req.get("host")}`;
+    }
+
+    let image;
+    if (req.file) {
+      image = `${BASE_URL}/uploads/category/${req.file.filename}`;
+    }
+
     const seo = typeof req.body.seo === 'string' ? JSON.parse(req.body.seo) : req.body.seo;
-   
+
     // Find the main category
     const category = await Category.findById(categoryId);
     if (!category) {
@@ -291,7 +316,9 @@ exports.updateSubcategory = async (req, res) => {
       return res.status(404).json({ success: false, error: "Subcategory not found" });
     }
     // Update subcategory fields
-
+    if (image) {
+      subcategory.image = image;
+    }
     subcategory.name = name;
     subcategory.slug = slugify(name, { lower: true, strict: true });
     if (sortOrder !== undefined) subcategory.sortOrder = sortOrder;
@@ -303,7 +330,7 @@ exports.updateSubcategory = async (req, res) => {
         canonicalUrl: seo.canonicalUrl || ''
       };
     }
-    
+
     await category.save();
 
     return res.status(200).json({
