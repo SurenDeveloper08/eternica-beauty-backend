@@ -14,23 +14,29 @@ exports.getSeoByPage = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-// Create or Update SEO for a Page
+  
+// controllers/seoController.js
 exports.upsertSeo = async (req, res) => {
   try {
     const { page, metaTitle, metaDescription, metaKeywords, canonicalUrl } = req.body;
 
-    if (!page || !metaTitle || !metaDescription)
-      return res.status(400).json({ success: false, message: "Missing required SEO fields" });
+    if (!page || !metaTitle || !metaDescription) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required SEO fields",
+      });
+    }
 
     const updated = await Seo.findOneAndUpdate(
       { page },
       { page, metaTitle, metaDescription, metaKeywords, canonicalUrl },
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
+    console.error("Upsert SEO Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
