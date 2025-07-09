@@ -3,22 +3,22 @@ const Category = require('../models/categoryModel');
 const ErrorHandler = require('../utils/errorHandler')
 const catchAsyncError = require('../middlewares/catchAsyncError')
 const APIFeatures = require('../utils/apiFeatures');
+const slugify = require('slugify');
 
 exports.getProductsByCategory = catchAsyncError(async (req, res, next) => {
     try {
-        const { categoryId } = req.query;
-
+        const { categorySlug } = req.query;
+    
         // 1. Get the category and its SEO
-        const category = await Category.findById(categoryId);
+        const category = await Category.findOne({ slug: categorySlug });
 
         if (!category) {
             return res.status(404).json({ success: false, message: "Category not found" });
         }
 
         // 2. Get all products under that category
-        const data = await Product.find({ category: categoryId });
-
-        // 3. Return combined response
+        const data = await Product.find({ category: categorySlug });
+     // 3. Return combined response
         res.status(200).json({
             success: true,
             seo: category.seo,
@@ -26,6 +26,7 @@ exports.getProductsByCategory = catchAsyncError(async (req, res, next) => {
                 _id: category._id,
                 name: category.name,
                 slug: category.slug,
+                image: category.image,
             },
             data,
         });
@@ -37,38 +38,39 @@ exports.getProductsByCategory = catchAsyncError(async (req, res, next) => {
 exports.getProductsBySubCategory = async (req, res) => {
     try {
 
-        const { categoryId, subcategoryId } = req.query;
-
-        if (!categoryId || !subcategoryId) {
+        const { categorySlug, subcategorySlug } = req.query;
+        
+        if (!categorySlug || !subcategorySlug) {
             return res.status(400).json({ success: false, message: "Both category and subcategory IDs are required" });
         }
 
         // Fetch products
-        const data = await Product.find({ category: categoryId, subCategory: subcategoryId });
+        const data = await Product.find({ category: categorySlug, subCategory: subcategorySlug });
 
         // Fetch category and subcategory SEO
-        const categoryDoc = await Category.findById(categoryId);
+        const categoryDoc = await Category.findOne({ slug: categorySlug });
         if (!categoryDoc) {
             return res.status(404).json({ success: false, message: "Category not found" });
         }
 
-        const subCat = categoryDoc.subcategories.id(subcategoryId);
+        const subCat = categoryDoc.subcategories.find(sub => sub.slug === subcategorySlug);
         if (!subCat) {
             return res.status(404).json({ success: false, message: "Subcategory not found" });
         }
 
         // Prepare SEO data (fallback to category name if missing)
-        const seo = {
+         const seo = {
             metaTitle: subCat.seo?.metaTitle || subCat.name,
             metaDescription: subCat.seo?.metaDescription || `Browse ${subCat.name} products.`,
             metaKeywords: subCat.seo?.metaKeywords || subCat.name,
-            canonicalUrl: subCat.seo?.canonicalUrl || ''
+            canonicalUrl: subCat.seo?.canonicalUrl || '',
         };
-
+      
         res.status(200).json({
             success: true,
             count: data.length,
             data,
+            category:subCat, 
             seo
         });
 
@@ -80,13 +82,25 @@ exports.getProductsBySubCategory = async (req, res) => {
 
 exports.getProductsByrelCategory = async (req, res) => {
     try {
-        const { id, category, subcategory } = req.query;
+        const { slug } = req.query;
 
-        if (!category || !subcategory) {
-            return res.status(400).json({ success: false, message: "Both Id are required" });
+        if (!slug) {
+            return res.status(400).json({ success: false, message: "Product slug is required" });
         }
 
-        const data = await Product.find({ category: category, subCategory: subcategory, _id: { $ne: id }, });
+        // Find current product by slug
+        const currentProduct = await Product.findOne({ slug });
+
+        if (!currentProduct) {
+            return res.status(404).json({ success: false, message: "Product not found" });
+        }
+
+        // Find related products by same category and subCategory, excluding the current product
+        const data = await Product.find({
+            category: currentProduct.category,
+            subCategory: currentProduct.subCategory,
+            slug: { $ne: currentProduct.slug },
+        });
 
         res.status(200).json({
             success: true,
@@ -100,7 +114,6 @@ exports.getProductsByrelCategory = async (req, res) => {
 
 //Get Products - /api/v1/products
 exports.getProducts = catchAsyncError(async (req, res, next) => {
-
 
     const data = await Product.find();
     if (!data) {
@@ -154,7 +167,30 @@ exports.newProduct = catchAsyncError(async (req, res, next) => {
             images.push({ image: url });
         });
     }
+    if (typeof req.body.category === 'string') {
+        const foundCategory = await Category.findOne({ slug: req.body.category });
+        if (!foundCategory) {
+            return res.status(400).json({ success: false, message: 'Category not found' });
+        }
+        req.body.category = foundCategory.slug;
 
+        // If you're using subCategory as slug (embedded):
+        const foundSub = foundCategory.subcategories.find(
+            (sub) => sub.slug === req.body.subCategory
+        );
+        if (!foundSub) {
+            return res.status(400).json({ success: false, message: 'Subcategory not found' });
+        }
+        req.body.subCategory = foundSub.slug; // or foundSub.name
+    }
+
+
+    // 🔢 Convert number fields from string
+    ['stock', 'price', 'oldPrice', 'deliveryDays'].forEach(field => {
+        if (req.body[field] !== undefined) {
+            req.body[field] = Number(req.body[field]);
+        }
+    });
     req.body.image = images[0]?.image || '';
     req.body.images = images;
 
@@ -181,22 +217,45 @@ exports.newProduct = catchAsyncError(async (req, res, next) => {
     });
 });
 
-
 //update product
 exports.updateProduct = catchAsyncError(async (req, res, next) => {
-    const productId = req.params.id;
+    const { slug } = req.params;
+
     let BASE_URL = process.env.BACKEND_URL;
 
     if (process.env.NODE_ENV === "production") {
         BASE_URL = `${req.protocol}://${req.get("host")}`;
     }
 
-    const product = await Product.findById(productId);
+    const product = await Product.findOne({ slug });
     if (!product) {
         return res.status(404).json({ success: false, message: "Product not found" });
     }
+    if (typeof req.body.category === 'string') {
+        const foundCategory = await Category.findOne({ slug: req.body.category });
+        if (!foundCategory) {
+            return res.status(400).json({ success: false, message: 'Category not found' });
+        }
+        req.body.category = foundCategory.slug;
 
-    // Parse specific fields if sent as strings
+        // If you're using subCategory as slug (embedded):
+        const foundSub = foundCategory.subcategories.find(
+            (sub) => sub.slug === req.body.subCategory
+        );
+        if (!foundSub) {
+            return res.status(400).json({ success: false, message: 'Subcategory not found' });
+        }
+        req.body.subCategory = foundSub.slug; // or foundSub.name
+    }
+
+
+    // 🔢 Convert number fields from string
+    ['stock', 'price', 'oldPrice', 'deliveryDays'].forEach(field => {
+        if (req.body[field] !== undefined) {
+            req.body[field] = Number(req.body[field]);
+        }
+    });
+    // Parse stringified JSON fields
     if (typeof req.body.specifications === "string") {
         req.body.specifications = JSON.parse(req.body.specifications);
     }
@@ -204,40 +263,47 @@ exports.updateProduct = catchAsyncError(async (req, res, next) => {
         req.body.sizes = JSON.parse(req.body.sizes);
     }
 
-    // Update all other fields dynamically
+    // update other fields ...
     for (const key in req.body) {
-        if (key !== "imagesToRemove") {
+        if (key !== 'imagesToRemove' && key !== 'productName') {
             product[key] = req.body[key];
         }
     }
-    // Remove selected images
-    const { imagesToRemove } = req.body;
 
+    if (req.body.productName) {
+        product.productName = req.body.productName;
+    }
+
+    // Handle image removal
+    const { imagesToRemove } = req.body;
     let updatedImages = product.images || [];
 
     if (imagesToRemove) {
         updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img.image));
-
     }
 
-    // Add new uploaded images
+    // Add new images
     if (req.files && req.files.length > 0) {
         req.files.forEach((file) => {
             const imageUrl = `${BASE_URL}/uploads/product/${file.originalname}`;
             updatedImages.push({ image: imageUrl });
         });
     }
+
     if (updatedImages.length > 0) {
         product.image = updatedImages[0].image;
     }
 
     product.images = updatedImages;
+
+    // SEO fields
     product.seo = {
         metaTitle: req.body.metaTitle || '',
         metaDescription: req.body.metaDescription || '',
         metaKeywords: req.body.metaKeywords || '',
         canonicalUrl: req.body.canonicalUrl || ''
     };
+
     await product.save();
 
     res.status(200).json({
@@ -245,13 +311,11 @@ exports.updateProduct = catchAsyncError(async (req, res, next) => {
         message: "Product updated",
         product
     });
-
 });
 
 //Get Single Product - api/v1/product/:id
 exports.getSingleProduct = catchAsyncError(async (req, res, next) => {
-    const data = await Product.findById(req.params.id);
-    // const data = await Product.findById(req.params.id).populate('reviews.user', 'name email');
+    const data = await Product.findOne({ slug: req.params.slug });
 
     if (!data) {
         return next(new ErrorHandler('Product not found', 400));
@@ -266,19 +330,24 @@ exports.getSingleProduct = catchAsyncError(async (req, res, next) => {
 
 // update home products
 exports.updateHighlights = catchAsyncError(async (req, res, next) => {
-
     try {
         const { isFeatured, isPopular, isBestDeal } = req.body;
-        const product = await Product.findByIdAndUpdate(
-            req.params.id,
+        const product = await Product.findOneAndUpdate(
+            { slug: req.params.slug },
             { isFeatured, isPopular, isBestDeal },
             { new: true }
         );
+
+        if (!product) {
+            return res.status(404).json({ success: false, message: "Product not found" });
+        }
+
         res.json({ success: true, product });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
-})
+});
+
 
 // get by features product home page
 exports.getHomePageHighlights = catchAsyncError(async (req, res) => {
@@ -298,7 +367,7 @@ exports.getHomePageHighlights = catchAsyncError(async (req, res) => {
 
 //Delete Product - api/v1/product/:id
 exports.deleteProduct = catchAsyncError(async (req, res, next) => {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findOne({ slug: req.params.slug });
 
     if (!product) {
         return res.status(404).json({
@@ -307,14 +376,14 @@ exports.deleteProduct = catchAsyncError(async (req, res, next) => {
         });
     }
 
-    await product.remove();
+    await product.deleteOne();
 
     res.status(200).json({
         success: true,
         message: "Product Deleted!"
-    })
+    });
+});
 
-})
 
 //Create Review - api/v1/review
 exports.createReview = catchAsyncError(async (req, res, next) => {

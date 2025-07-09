@@ -17,13 +17,12 @@ function formatNames(input) {
 
 exports.newReview = catchAsyncError(async (req, res, next) => {
     try {
-        const { productId, rating, comment } = req.body;
+        const { slug, rating, comment } = req.body;
         if (!rating || rating < 1 || rating > 5) {
             return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
         }
-
         const review = new Review({
-            productId,
+            slug,
             userId: req.user.id,
             name: formatNames(req.user.name), // from token
             rating,
@@ -40,7 +39,7 @@ exports.newReview = catchAsyncError(async (req, res, next) => {
 
 exports.getReviews = catchAsyncError(async (req, res, next) => {
     try {
-        const reviews = await Review.find({ productId: req.params.productId }).sort({ createdAt: -1 });
+        const reviews = await Review.find({ slug: req.params.slug }).sort({ createdAt: -1 });
         res.status(200).json({ success: true, data: reviews });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Error fetching reviews' });
@@ -49,8 +48,8 @@ exports.getReviews = catchAsyncError(async (req, res, next) => {
 
 exports.getRating = catchAsyncError(async (req, res, next) => {
     try {
-        const productId = req.params.productId;
-        const reviews = await Review.find({ productId });
+        const slug = req.params.slug;
+        const reviews = await Review.find({ slug });
 
         const totalReviews = reviews.length;
         const averageRating =
@@ -82,28 +81,28 @@ exports.getRating = catchAsyncError(async (req, res, next) => {
 // controllers/reviewController.js
 exports.checkIfPurchased = catchAsyncError(async (req, res, next) => {
     const userId = req.user._id;
-    const productId = req.params.productId;
+    const slug = req.params.slug;
 
-    // Check if a delivered order exists for the user containing the product
+    // Directly query orders for the given slug in delivered orders
     const order = await Order.findOne({
         user: userId,
-        'items.productId': productId,
+        'items.slug': slug,
         orderStatus: 'Delivered',
     });
 
     const hasPurchased = !!order;
-
+  
     return res.status(200).json({
         success: true,
         purchased: hasPurchased,
     });
 });
 
+
 exports.newAdminReview = catchAsyncError(async (req, res, next) => {
     try {
         const { productId, rating, name, comment, isActive, sortOrder } = req.body;
-        console.log(productId, rating, name, comment, isActive, sortOrder);
-
+       
         if (!rating || rating < 1 || rating > 5) {
             return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
         }

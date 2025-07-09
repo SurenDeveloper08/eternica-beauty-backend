@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto')
 
 const cartItemSchema = new mongoose.Schema({
-    productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+    slug: { type: String, required: true },
     quantity: { type: Number, default: 1 },
 });
 

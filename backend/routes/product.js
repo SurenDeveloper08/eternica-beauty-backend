@@ -17,9 +17,9 @@ const upload = multer({
 })
 
 router.route('/products').get(getProducts);
-router.route('/product/:id').get(getSingleProduct);
+router.route('/product/:slug').get(getSingleProduct);
 router.route('/products/search').get(searchProducts);
-router.route('/admin/products/highlight/:id').put(updateHighlights);
+router.route('/admin/products/highlight/:slug').put(updateHighlights);
 router.route('/products/homepage-products').get(getHomePageHighlights);
 
 
@@ -33,8 +33,8 @@ router.route('/products/related').get(getProductsByrelCategory);
 //Admin routes
 router.route('/admin/product/new').post(upload.array('images'), newProduct);
 router.route('/admin/products').get(isAuthenticatedUser, authorizeRoles('admin'), getAdminProducts);
-router.route('/admin/product/:id').delete(isAuthenticatedUser, authorizeRoles('admin'), deleteProduct);
-router.route('/admin/product/:id').put(isAuthenticatedUser, authorizeRoles('admin'), upload.array('images'), updateProduct);
+router.route('/admin/product/:slug').delete(isAuthenticatedUser, authorizeRoles('admin'), deleteProduct);
+router.route('/admin/product/:slug').put(isAuthenticatedUser, authorizeRoles('admin'), upload.array('images'), updateProduct);
 router.route('/admin/reviews').get(isAuthenticatedUser, authorizeRoles('admin'), getReviews)
 router.route('/admin/review').delete(isAuthenticatedUser, authorizeRoles('admin'), deleteReview)
 

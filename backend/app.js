@@ -35,6 +35,7 @@ const dashboard = require('./routes/dashboard')
 const highlight = require('./routes/ProductHighlight')
 const seo = require('./routes/seo')
 const review = require('./routes/review')
+const gcc = require('./routes/gccCountry')
 app.use('/api/v1/', products);
 app.use('/api/v1/', category);
 app.use('/api/v1/', auth);
@@ -49,6 +50,7 @@ app.use('/api/v1/', dashboard)
 app.use('/api/v1/', highlight)
 app.use('/api/v1/', seo)
 app.use('/api/v1/', review)
+app.use('/api/v1/', gcc)
 // app.use('/api/v1/',payment);
 
 

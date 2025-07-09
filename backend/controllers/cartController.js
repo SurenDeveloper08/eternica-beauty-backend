@@ -3,57 +3,16 @@ const User = require('../models/userModel');
 const Product = require('../models/productModel');
 const ErrorHandler = require('../utils/errorHandler');
 
-// exports.addToCart = catchAsyncError(async (req, res, next) => {
-
-//     try {
-//         const { id } = req.body;
-//         const qty = req.query?.qty;
-//         const user = await User.findById(req.user._id);
-
-
-//         if (!user) return next(new ErrorHandler("User not found", 404));
-
-//         const exists = user.cart.find(item => item._id.toString() === id);
-
-//         if (exists) {
-//             const total = Number(exists?.quantity) + Number(qty);
-//             if (exists.quantity > 10 || total > 10) {
-
-//                 return res.status(201).json({
-//                     success: false,
-//                     message: "Maximum quantity 10."
-//                 });
-//             }
-//             else {
-//                 exists.quantity = total
-//             }
-
-//         } else {
-//             user.cart.push({ _id: id, quantity: qty });
-//         }
-
-
-
-//         await user.save();
-
-//         res.status(200).json({
-//             success: true,
-//             message: "Cart Added",
-//         });
-
-//     } catch (err) {
-//         next(err);
-//     }
-// });
 exports.addToCart = catchAsyncError(async (req, res, next) => {
     try {
-        const { id } = req.body;
+        const { slug } = req.body;
         const qty = parseInt(req.query?.qty) || 1;
 
         const user = await User.findById(req.user._id);
         if (!user) return next(new ErrorHandler("User not found", 404));
 
-        const product = await Product.findById(id);
+        const product = await Product.findOne({ slug });
+
         if (!product) return next(new ErrorHandler("Product not found", 404));
 
         if (!product.stock || product.stock < qty) {
@@ -63,25 +22,22 @@ exports.addToCart = catchAsyncError(async (req, res, next) => {
             });
         }
 
-        const exists = user.cart.find(item => item._id.toString() === id);
+        const exists = user.cart.find(item => item?.slug === slug);
 
         if (exists) {
             const totalQty = exists.quantity + qty;
-
             if (totalQty > 10) {
                 return res.status(400).json({
                     success: false,
                     message: "Maximum quantity per item is 10.",
                 });
             }
-
             if (totalQty > product.stock) {
                 return res.status(400).json({
                     success: false,
                     message: `Only ${product.stock} item(s) available. You already added ${exists.quantity}.`,
                 });
             }
-
             exists.quantity = totalQty;
         } else {
             if (qty > 10) {
@@ -90,12 +46,10 @@ exports.addToCart = catchAsyncError(async (req, res, next) => {
                     message: "Maximum quantity per item is 10.",
                 });
             }
-
-            user.cart.push({ _id: id, quantity: qty });
+            user.cart.push({ slug: slug, quantity: qty });
         }
 
         await user.save();
-
         return res.status(200).json({
             success: true,
             message: "Cart added successfully.",
@@ -106,13 +60,13 @@ exports.addToCart = catchAsyncError(async (req, res, next) => {
 });
 // GET /api/v1/cart/qty/:productId
 exports.getCartQty = catchAsyncError(async (req, res, next) => {
-    const productId = req.params.id;
-    
+    const slug = req.params.slug;
+
     const user = await User.findById(req.user._id);
 
     if (!user) return next(new ErrorHandler("User not found", 404));
 
-    const item = user.cart.find((item) => item._id.toString() === productId);
+    const item = user.cart.find((item) => item.slug === slug);
     res.status(200).json({
         success: true,
         qty: item ? item.quantity : 0,
@@ -137,7 +91,7 @@ exports.getCart = async (req, res, next) => {
         let deliveryFee = 0;
         const cartItems = await Promise.all(
             user.cart.map(async (item) => {
-                const product = await Product.findById(item._id)
+                const product = await Product.findOne({ slug: item.slug })
                     .select('productName price image colors sizes stock');
 
                 if (!product) return null;
@@ -147,7 +101,7 @@ exports.getCart = async (req, res, next) => {
                 if (typeof product.stock === 'boolean') {
                     inStock = product.stock;
                 } else if (typeof product.stock === 'number') {
-                     inStock = product.stock > 0;
+                    inStock = product.stock > 0;
                 }
 
                 const subtotal = product.price * item.quantity;
@@ -158,7 +112,7 @@ exports.getCart = async (req, res, next) => {
                 }
 
                 return {
-                    productId: item._id,
+                    slug: item.slug,
                     quantity: item.quantity,
                     product,
                     subtotal,
@@ -166,13 +120,12 @@ exports.getCart = async (req, res, next) => {
                 };
             })
         );
-
         const filteredCart = cartItems.filter(Boolean);
         const vat = parseFloat((totalPrice * 0.05).toFixed(2));
         const total = parseFloat((totalPrice + vat).toFixed(2));
         deliveryFee = Number(totalPrice) < 300 ? 30 : 0;
         totalPrice = totalPrice + deliveryFee;
-       
+
         res.status(200).json({
             success: true,
             count: filteredCart.length,
@@ -190,12 +143,11 @@ exports.getCart = async (req, res, next) => {
 
 
 exports.updateCartQuantity = async (req, res, next) => {
-    const { productId, quantity } = req.body;
-
-    const user = await User.findById(req.user._id);
+    const { slug, quantity } = req.body;
+     const user = await User.findById(req.user._id);
     if (!user) return next(new ErrorHandler("User not found", 404));
 
-    const cartIndex = user.cart.findIndex(item => item._id.toString() === productId);
+    const cartIndex = user.cart.findIndex(item => item.slug === slug);
     if (cartIndex === -1) return next(new ErrorHandler("Product not in cart", 404));
 
     if (quantity <= 0) {
@@ -217,14 +169,14 @@ exports.updateCartQuantity = async (req, res, next) => {
 
     // Prepare updated cart response
     const updatedCart = await Promise.all(user.cart.map(async item => {
-        const product = await Product.findById(item._id).select('productName price image colors sizes stock');
+        const product = await Product.findOne({ slug: item.slug }).select('productName price image colors sizes stock');
         if (!product) return null;
 
         const inStock = typeof product.stock === 'boolean' ? product.stock : product.stock > 0;
         const subtotal = product.price * item.quantity;
 
         return {
-            productId: item._id,
+            slug: item.slug,
             quantity: item.quantity,
             product,
             subtotal,
@@ -253,15 +205,14 @@ exports.updateCartQuantity = async (req, res, next) => {
 
 
 exports.removeFromCart = catchAsyncError(async (req, res, next) => {
-    const productId = req.params.productId;
-
+    const slug = req.params.slug;
     const user = await User.findById(req.user._id);
     if (!user) {
         return next(new ErrorHandler('User not found', 404));
     }
 
     const initialLength = user.cart.length;
-    user.cart = user.cart.filter(item => item._id.toString() !== productId);
+    user.cart = user.cart.filter(item => item.slug !== slug);
 
     if (user.cart.length === initialLength) {
         return res.status(404).json({
@@ -280,12 +231,12 @@ exports.removeFromCart = catchAsyncError(async (req, res, next) => {
 });
 
 exports.getSingleCartItem = catchAsyncError(async (req, res, next) => {
-    const { productId } = req.params;
+    const { slug } = req.params;
     const user = await User.findById(req.user._id);
 
     if (!user) return next(new ErrorHandler("User not found", 404));
 
-    const cartItem = user.cart.find(item => item._id.toString() === productId);
+    const cartItem = user.cart.find(item => item.slug === slug);
 
     if (!cartItem) {
         return res.status(404).json({
@@ -294,8 +245,7 @@ exports.getSingleCartItem = catchAsyncError(async (req, res, next) => {
         });
     }
 
-    const product = await Product.findById(cartItem._id)
-        .select('productName price image colors sizes stock');
+    const product = await Product.findOne({ slug }).select('productName price image colors sizes stock');
 
     if (!product) {
         return res.status(404).json({
@@ -304,14 +254,14 @@ exports.getSingleCartItem = catchAsyncError(async (req, res, next) => {
         });
     }
 
-    let inStock = typeof product.stock === 'boolean' ? product.stock : product.stock > 0;
+    const inStock = typeof product.stock === 'boolean' ? product.stock : product.stock > 0;
 
     const subtotal = product.price * cartItem.quantity;
 
     res.status(200).json({
         success: true,
         data: {
-            productId: cartItem._id,
+            slug: cartItem.slug,
             quantity: cartItem.quantity,
             product,
             subtotal,
@@ -319,3 +269,4 @@ exports.getSingleCartItem = catchAsyncError(async (req, res, next) => {
         },
     });
 });
+

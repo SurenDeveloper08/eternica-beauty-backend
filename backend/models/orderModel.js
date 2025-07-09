@@ -12,7 +12,7 @@ const deliveryAddressSchema = new mongoose.Schema({
 });
 
 const itemsSchema = new mongoose.Schema({
-    productId: {
+    slug: {
         type: String,
         required: true
     },
@@ -21,7 +21,7 @@ const itemsSchema = new mongoose.Schema({
         required: true
     },
     product: {
-        productId: {
+        slug: {
             type: String
         },
         productName: {
@@ -76,6 +76,7 @@ const orderSchema = mongoose.Schema({
         enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
         default: 'Pending',
     },
+    invoice: { type: String },
     deliveryCharge: Number,
     createdAt: {
         type: Date,

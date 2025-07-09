@@ -44,7 +44,7 @@ router.route('/admin/subcategory/:categoryId').post(isAuthenticatedUser, authori
 router.route('/admin/subcategories/all').get(isAuthenticatedUser, authorizeRoles('admin'), getAllSubcategories);
 router.route('/admin/category/:id').delete(isAuthenticatedUser, authorizeRoles('admin'), deleteCategory);
 router.route('/admin/subcategory/:categoryId/:subCategoryId').delete(isAuthenticatedUser, authorizeRoles('admin'), deleteSubCategory);
-router.route('/categories/subcategory/:categoryId').get(getSubcategory);
+router.route('/categories/subcategory/:categorySlug').get(getSubcategory);
 router.route('/admin/subcategory/:categoryId/:subCategoryId').put(isAuthenticatedUser, authorizeRoles('admin'), upload.single('image'), updateSubcategory);
 router.route('/admin/subcategory/:categoryId/:subCategoryId/status').put(isAuthenticatedUser, authorizeRoles('admin'), upload.single('image'), updateSubcategoryStatus);
 router.route('/admin/subcategory/:categoryId/:subCategoryId').get(isAuthenticatedUser, authorizeRoles('admin'), getSingleSubcategory);

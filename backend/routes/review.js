@@ -5,13 +5,13 @@ const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenti
 
 router.route('/review/add').post(isAuthenticatedUser, newReview);
 router.route('/admin/review/new').post(isAuthenticatedUser, authorizeRoles('admin'), newAdminReview);
-router.route('/review/check-purchase/:productId').get(isAuthenticatedUser, checkIfPurchased);
+router.route('/review/check-purchase/:slug').get(isAuthenticatedUser, checkIfPurchased);
 router.route('/admin/review').get(isAuthenticatedUser, authorizeRoles('admin'), getAllReviews);
 router.route('/admin/review/status/:id').put(isAuthenticatedUser,authorizeRoles('admin'),updateReviewStatus);
 router.route('/admin/review/:id').put(isAuthenticatedUser,authorizeRoles('admin'), updateAdminReview);
 router.route('/admin/review/:id').get(isAuthenticatedUser,authorizeRoles('admin'), getReviewById);
 router.route('/admin/review/:id').delete(isAuthenticatedUser,authorizeRoles('admin'), deleteAdminReview);
-router.route('/review/:productId').get(getReviews);
-router.route('/review/stats/:productId').get(getRating);
+router.route('/review/:slug').get(getReviews);
+router.route('/review/stats/:slug').get(getRating);
 
 module.exports = router;

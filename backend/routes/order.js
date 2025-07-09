@@ -9,7 +9,7 @@ const {isAuthenticatedUser, authorizeRoles} = require('../middlewares/authentica
 
 const upload = multer({storage: multer.diskStorage({
     destination: function(req, file, cb) {
-        cb(null, path.join( __dirname,'..' , 'uploads/poster' ) )
+        cb(null, path.join( __dirname,'..' , 'uploads/invoices' ) )
     },
     filename: function(req, file, cb ) {
         cb(null, file.originalname)

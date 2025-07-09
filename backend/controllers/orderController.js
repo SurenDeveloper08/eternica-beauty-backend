@@ -17,6 +17,7 @@ exports.createOrder = catchAsyncError(async (req, res, next) => {
             deliveryCharge,
             token,
         } = req.body;
+
         const userId = req.user._id;
         const customerEmail = shippingInfo.email;
         const adminEmail = process.env.ADMIN_EMAIL;
@@ -65,6 +66,7 @@ exports.createOrder = catchAsyncError(async (req, res, next) => {
         //     payment.transactionId = charge.id;
         //   }
         const deliveryAmount = deliveryCharge ? deliveryCharge : 0;
+
         const order = await Order.create({
             user: userId,
             deliveryCharge: deliveryAmount,
@@ -76,22 +78,23 @@ exports.createOrder = catchAsyncError(async (req, res, next) => {
             orderStatus: 'Pending',
             createdAt: now
         });
-
-        const orderedProductIds = items.map(item => item.productId.toString());
+        const orderedProductIds = items.map(item => item.slug);
 
         const user = await User.findById(userId);
 
         await User.findByIdAndUpdate(user._id, {
             $pull: {
-                cart: { _id: { $in: orderedProductIds } }
+                cart: { slug: { $in: orderedProductIds } }
             }
         });
         try {
-            await sendEmail(customerEmail, `Your Order ${orderNumber}`, 'customer', order, 'Ordered');
-            await sendEmail(adminEmail, `New Order ${orderNumber}`, 'admin', order, 'Ordered');
-            order.items.forEach(async orderItem => {
-                await updateStock(orderItem.productId, orderItem.quantity)
+            await sendEmail(customerEmail, 'customer', order, 'Ordered');
+            await sendEmail(adminEmail, 'admin', order, 'Ordered');
+
+           order.items.forEach(async orderItem => {
+                await updateStock(orderItem.slug, orderItem.quantity)
             })
+
         } catch (emailErr) {
             console.error('Email send error:', emailErr.message);
         }
@@ -144,7 +147,7 @@ exports.getOrderById = catchAsyncError(async (req, res, next) => {
     try {
         const order = await Order.findById(req.params.id)
             .populate('user', 'name email')
-            .populate('items.productId', 'productName image price');
+            .populate('items.slug', 'productName image price');
 
         if (!order) {
             return res.status(404).json({ success: false, message: 'Order not found' });
@@ -177,49 +180,25 @@ exports.updateOrder = catchAsyncError(async (req, res, next) => {
 
     const updateData = { orderStatus: status };
     if (invoiceFile) {
-        updateData.invoiceUrl = `/uploads/invoices/${invoiceFile.filename}`;
+        const baseUrl =
+            process.env.NODE_ENV === 'production'
+                ? `${req.protocol}://${req.get('host')}`
+                : process.env.BACKEND_URL;
+
+        updateData.invoice = `${baseUrl}/uploads/invoices/${invoiceFile.filename}`;
+
     }
 
     await Order.findByIdAndUpdate(req.params.id, updateData);
 
-    // 📧 Compose different emails based on status
-    let customerSubject = '';
-    let customerMessage = '';
-    let adminSubject = '';
-    let adminMessage = '';
+    await sendEmail(customerEmail, 'customer', order, status, updateData?.invoice);
 
-    switch (status) {
-        case 'Shipped':
-            customerSubject = `Your Order ${orderNumber} has been shipped`;
-            customerMessage = `Good news! Your order ${orderNumber} has been shipped and is on the way.`;
-            adminSubject = `Order ${orderNumber} marked as Shipped`;
-            adminMessage = `Admin notification: Order ${orderNumber} status updated to Shipped.`;
-            break;
 
-        case 'Out for Delivery':
-            customerSubject = `Your Order ${orderNumber} is out for delivery`;
-            customerMessage = `Heads up! Your order ${orderNumber} is on its way and will be delivered soon.`;
-            adminSubject = `Order ${orderNumber} is Out for Delivery`;
-            adminMessage = `Admin alert: Order ${orderNumber} status updated to Out for Delivery.`;
-            break;
-
-        case 'Delivered':
-            customerSubject = `Your Order ${orderNumber} has been delivered`;
-            customerMessage = `Thanks for shopping with us! Order ${orderNumber} has been successfully delivered.`;
-            adminSubject = `Order ${orderNumber} marked as Delivered`;
-            adminMessage = `Admin notice: Order ${orderNumber} status updated to Delivered.`;
-            break;
-
-        default:
-            // No email for other statuses
-            return res.status(200).json({
-                success: true,
-                message: 'Order status updated without email notification',
-            });
+    if (status === 'Ordered') {
+        await sendEmail(adminEmail, 'admin', order, status);
     }
-    await sendEmail(customerEmail, customerSubject, 'customer', order, status);
-    if (status === 'Delivered') {
-        await sendEmail(adminEmail, adminSubject, 'admin', order, status);
+    else if (status === 'Delivered') {
+        await sendEmail(adminEmail, 'admin', order, status, updateData.invoice);
     }
 
     res.status(200).json({
@@ -299,8 +278,9 @@ exports.orders = catchAsyncError(async (req, res, next) => {
     })
 })
 
-async function updateStock(productId, quantity) {
-    const product = await Product.findById(productId);
+async function updateStock(slug, quantity) {
+    const product = await Product.findOne({ slug: slug });
+
     product.stock = product.stock - quantity;
     product.save({ validateBeforeSave: false })
 }

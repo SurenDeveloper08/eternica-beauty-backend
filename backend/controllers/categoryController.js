@@ -154,9 +154,10 @@ exports.addSubcategory = async (req, res, next) => {
 };
 
 exports.getSubcategory = async (req, res) => {
-  const { categoryId } = req.params;
+  const { categorySlug } = req.params;
+  
   try {
-    const subcategories = await Category.findById(categoryId);
+    const subcategories = await Category.findOne({slug: categorySlug});
     res.status(201).json({
       success: true,
       data: subcategories.subcategories
