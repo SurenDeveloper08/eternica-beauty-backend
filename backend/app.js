@@ -9,8 +9,13 @@ const cors = require('cors');
 dotenv.config({ path: path.join(__dirname, "config/config.env") });
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL,
-    credentials: true
+  origin: process.env.FRONTEND_URL || 'https://spastore.me/',
+  credentials: true,
+}));
+
+app.options('*', cors({
+  origin: process.env.FRONTEND_URL || 'https://spastore.me/',
+  credentials: true,
 }));
 
 // Also needed:
