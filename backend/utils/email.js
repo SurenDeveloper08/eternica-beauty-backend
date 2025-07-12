@@ -69,7 +69,8 @@ const generateItemsTablenew = (items) => {
                                                                                                                                                                 </tr>
                                                                                                                                                             </tbody>
                                                                                                                                                         </table>
-                                                                                                                                                        <!-- <table
+                                                                                                                                                         ${item?.color ?
+                                                                                                                                                       `<table
                                                                                                                                                             width="100%"
                                                                                                                                                             border="0"
                                                                                                                                                             cellpadding="0"
@@ -94,86 +95,49 @@ const generateItemsTablenew = (items) => {
                                                                                                                                                                                         <div class="m_2965410129824235511pc-w620-align-left m_2965410129824235511pc-w620-fontSize-14px m_2965410129824235511pc-w620-lineHeight-24"
                                                                                                                                                                                             style="line-height:24px;letter-spacing:-0px;font-family:'Nunito Sans',Arial,Helvetica,sans-serif;font-size:14px;font-weight:600;color:#121212cc">
                                                                                                                                                                                             <div>
-                                                                                                                                                                                                <span>Transaction
-                                                                                                                                                                                                    ID:
-                                                                                                                                                                                                    1806790905</span>
-                                                                                                                                                                                            </div>
-                                                                                                                                                                                        </div>
-                                                                                                                                                                                    </td>
-                                                                                                                                                                                </tr>
-                                                                                                                                                                            </tbody>
-                                                                                                                                                                        </table>
-                                                                                                                                                                    </td>
-                                                                                                                                                                </tr>
-                                                                                                                                                            </tbody>
-                                                                                                                                                        </table>
-                                                                                                                                                        <table
-                                                                                                                                                            width="100%"
-                                                                                                                                                            border="0"
-                                                                                                                                                            cellpadding="0"
-                                                                                                                                                            cellspacing="0"
-                                                                                                                                                            role="presentation">
-                                                                                                                                                            <tbody>
-                                                                                                                                                                <tr>
-                                                                                                                                                                    <td class="m_2965410129824235511pc-w620-align-left"
-                                                                                                                                                                        valign="top"
-                                                                                                                                                                        style="padding:0px 0px 2px 0px;height:auto">
-                                                                                                                                                                        <table
-                                                                                                                                                                            border="0"
-                                                                                                                                                                            cellpadding="0"
-                                                                                                                                                                            cellspacing="0"
-                                                                                                                                                                            role="presentation"
-                                                                                                                                                                            class="m_2965410129824235511pc-w620-align-left"
-                                                                                                                                                                            width="100%">
-                                                                                                                                                                            <tbody>
-                                                                                                                                                                                <tr>
-                                                                                                                                                                                    <td valign="top"
-                                                                                                                                                                                        class="m_2965410129824235511pc-w620-align-left">
-                                                                                                                                                                                        <div class="m_2965410129824235511pc-w620-align-left"
-                                                                                                                                                                                            style="line-height:24px;letter-spacing:-0px;font-family:'Nunito Sans',Arial,Helvetica,sans-serif;font-size:14px;font-weight:600;color:#121212cc">
-                                                                                                                                                                                            <div>
-                                                                                                                                                                                                <span>QTY:
-                                                                                                                                                                                                    SET
-                                                                                                                                                                                                    OF
-                                                                                                                                                                                                    3</span>
-                                                                                                                                                                                            </div>
-                                                                                                                                                                                        </div>
-                                                                                                                                                                                    </td>
-                                                                                                                                                                                </tr>
-                                                                                                                                                                            </tbody>
-                                                                                                                                                                        </table>
-                                                                                                                                                                    </td>
-                                                                                                                                                                </tr>
-                                                                                                                                                            </tbody>
-                                                                                                                                                        </table>
-                                                                                                                                                        <table
-                                                                                                                                                            width="100%"
-                                                                                                                                                            border="0"
-                                                                                                                                                            cellpadding="0"
-                                                                                                                                                            cellspacing="0"
-                                                                                                                                                            role="presentation">
-                                                                                                                                                            <tbody>
-                                                                                                                                                                <tr>
-                                                                                                                                                                    <td class="m_2965410129824235511pc-w620-align-left"
-                                                                                                                                                                        valign="top"
-                                                                                                                                                                        style="padding:0px 0px 2px 0px;height:auto">
-                                                                                                                                                                        <table
-                                                                                                                                                                            border="0"
-                                                                                                                                                                            cellpadding="0"
-                                                                                                                                                                            cellspacing="0"
-                                                                                                                                                                            role="presentation"
-                                                                                                                                                                            class="m_2965410129824235511pc-w620-align-left"
-                                                                                                                                                                            width="100%">
-                                                                                                                                                                            <tbody>
-                                                                                                                                                                                <tr>
-                                                                                                                                                                                    <td valign="top"
-                                                                                                                                                                                        class="m_2965410129824235511pc-w620-align-left">
-                                                                                                                                                                                        <div class="m_2965410129824235511pc-w620-align-left"
-                                                                                                                                                                                            style="line-height:24px;letter-spacing:-0px;font-family:'Nunito Sans',Arial,Helvetica,sans-serif;font-size:14px;font-weight:600;color:#121212cc">
-                                                                                                                                                                                            <div>
                                                                                                                                                                                                 <span>Color
                                                                                                                                                                                                     :
-                                                                                                                                                                                                    Blue
+                                                                                                                                                                                                    ${item?.color}</span>
+                                                                                                                                                                                            </div>
+                                                                                                                                                                                        </div>
+                                                                                                                                                                                    </td>
+                                                                                                                                                                                </tr>
+                                                                                                                                                                            </tbody>
+                                                                                                                                                                        </table>
+                                                                                                                                                                    </td>
+                                                                                                                                                                </tr>
+                                                                                                                                                            </tbody>
+                                                                                                                                                        </table>`: ''
+                                                                                                                                                         }
+                                                                                                                                                          ${item?.size ?
+                                                                                                                                                       `<table
+                                                                                                                                                            width="100%"
+                                                                                                                                                            border="0"
+                                                                                                                                                            cellpadding="0"
+                                                                                                                                                            cellspacing="0"
+                                                                                                                                                            role="presentation">
+                                                                                                                                                            <tbody>
+                                                                                                                                                                <tr>
+                                                                                                                                                                    <td class="m_2965410129824235511pc-w620-align-left"
+                                                                                                                                                                        valign="top"
+                                                                                                                                                                        style="padding:0px 0px 2px 0px;height:auto">
+                                                                                                                                                                        <table
+                                                                                                                                                                            border="0"
+                                                                                                                                                                            cellpadding="0"
+                                                                                                                                                                            cellspacing="0"
+                                                                                                                                                                            role="presentation"
+                                                                                                                                                                            class="m_2965410129824235511pc-w620-align-left"
+                                                                                                                                                                            width="100%">
+                                                                                                                                                                            <tbody>
+                                                                                                                                                                                <tr>
+                                                                                                                                                                                    <td valign="top"
+                                                                                                                                                                                        class="m_2965410129824235511pc-w620-align-left">
+                                                                                                                                                                                        <div class="m_2965410129824235511pc-w620-align-left"
+                                                                                                                                                                                            style="line-height:24px;letter-spacing:-0px;font-family:'Nunito Sans',Arial,Helvetica,sans-serif;font-size:14px;font-weight:600;color:#121212cc">
+                                                                                                                                                                                            <div>
+                                                                                                                                                                                                <span>Variant / Size
+                                                                                                                                                                                                    :
+                                                                                                                                                                                                  ${item.size}
                                                                                                                                                                                                 </span>
                                                                                                                                                                                             </div>
                                                                                                                                                                                         </div>
@@ -184,7 +148,8 @@ const generateItemsTablenew = (items) => {
                                                                                                                                                                     </td>
                                                                                                                                                                 </tr>
                                                                                                                                                             </tbody>
-                                                                                                                                                        </table> -->
+                                                                                                                                                        </table>`: '' 
+                                                                                                                                                          }
                                                                                                                                                         <table
                                                                                                                                                             border="0"
                                                                                                                                                             cellpadding="0"

@@ -4,6 +4,7 @@ const ErrorHandler = require('../utils/errorHandler')
 const catchAsyncError = require('../middlewares/catchAsyncError')
 const APIFeatures = require('../utils/apiFeatures');
 const slugify = require('slugify');
+const fs = require('fs');
 
 exports.getProductsByCategory = catchAsyncError(async (req, res, next) => {
     try {
@@ -155,18 +156,23 @@ exports.searchProducts = catchAsyncError(async (req, res, next) => {
 })
 //Create Product - /api/v1/product/new
 exports.newProduct = catchAsyncError(async (req, res, next) => {
-    let images = [];
+
     let BASE_URL = process.env.BACKEND_URL;
     if (process.env.NODE_ENV === "production") {
         BASE_URL = `${req.protocol}://${req.get("host")}`;
     }
 
+    let allImages = [];
+
     if (req.files.length > 0) {
         req.files.forEach((file) => {
-            let url = `${BASE_URL}/uploads/product/${file.originalname}`;
-            images.push({ image: url });
+            allImages.push({
+                image: `${BASE_URL}/uploads/product/${file.filename}`,
+            });
         });
     }
+
+    // Validate & get category and subcategory
     if (typeof req.body.category === 'string') {
         const foundCategory = await Category.findOne({ slug: req.body.category });
         if (!foundCategory) {
@@ -174,129 +180,307 @@ exports.newProduct = catchAsyncError(async (req, res, next) => {
         }
         req.body.category = foundCategory.slug;
 
-        // If you're using subCategory as slug (embedded):
         const foundSub = foundCategory.subcategories.find(
             (sub) => sub.slug === req.body.subCategory
         );
         if (!foundSub) {
             return res.status(400).json({ success: false, message: 'Subcategory not found' });
         }
-        req.body.subCategory = foundSub.slug; // or foundSub.name
+        req.body.subCategory = foundSub.slug;
     }
 
-
-    // 🔢 Convert number fields from string
+    // Convert basic fields
     ['stock', 'price', 'oldPrice', 'deliveryDays'].forEach(field => {
         if (req.body[field] !== undefined) {
             req.body[field] = Number(req.body[field]);
         }
     });
-    req.body.image = images[0]?.image || '';
-    req.body.images = images;
 
-    // Parse JSON fields before creating the product
-    if (typeof req.body.specifications === "string") {
-        req.body.specifications = JSON.parse(req.body.specifications);
-    }
-    if (typeof req.body.sizes === "string") {
-        req.body.sizes = JSON.parse(req.body.sizes);
+    // Parse JSON fields
+    const descriptions = req.body.descriptions || '[]';
+    const highlights = req.body.highlights || '[]';
+
+    const specifications = JSON.parse(req.body.specifications || '[]');
+    const variants = JSON.parse(req.body.variants || '[]');
+
+    // Extract images into gallery, variant, and size sections
+    let imgIndex = 0;
+    const galleryImagesCount = allImages.length - variants.reduce((acc, variant) => {
+        const variantImgCount = variant.images?.length || 0;
+        const sizeImgCount = (variant.sizes || []).reduce((sAcc, size) => sAcc + (size.images?.length || 0), 0);
+        return acc + variantImgCount + sizeImgCount;
+    }, 0);
+
+    const galleryImages = allImages.slice(imgIndex, imgIndex + galleryImagesCount);
+    req.body.image = galleryImages[0]?.image || '';
+    req.body.images = galleryImages;
+    imgIndex += galleryImagesCount;
+
+   const updatedVariants = variants.map((variant) => {
+    const variantImagesCount = variant.images?.length || 0;
+    const variantImages = allImages.slice(imgIndex, imgIndex + variantImagesCount).map(img => img.image);
+    imgIndex += variantImagesCount;
+
+    const updatedSizes = (variant.sizes || []).map((size) => {
+        const sizeImagesCount = size.images?.length || 0;
+        const sizeImages = allImages.slice(imgIndex, imgIndex + sizeImagesCount).map(img => img.image);
+        imgIndex += sizeImagesCount;
+
+        return {
+            name: size.name || '',
+            price: Number(size.price || 0),
+            stock: Number(size.stock || 0),
+            images: sizeImages
+        };
+    });
+
+    const hasColor = variant.color?.trim() !== '';
+    const hasSizes = updatedSizes.length > 0;
+
+    let finalVariant = {
+        images: variantImages,
+        sizes: updatedSizes
+    };
+
+    if (hasColor) {
+        finalVariant.color = variant.color;
+        finalVariant.colorCode = variant.colorCode || '';
     }
 
-    req.body.seo = {
+    if (!hasSizes) {
+        // Color-only or Size-only (flat)
+        finalVariant.price = Number(variant.price || 0);
+        finalVariant.stock = Number(variant.stock || 0);
+    } else {
+        // Derive price & stock from sizes
+        finalVariant.price = Math.min(...updatedSizes.map(s => s.price || 0));
+        finalVariant.stock = updatedSizes.reduce((sum, s) => sum + (s.stock || 0), 0);
+    }
+
+    return finalVariant;
+});
+
+    // SEO
+    const seo = {
         metaTitle: req.body.metaTitle || '',
         metaDescription: req.body.metaDescription || '',
         metaKeywords: req.body.metaKeywords || '',
         canonicalUrl: req.body.canonicalUrl || ''
     };
 
-    const product = await Product.create(req.body);
+    // Final product object
+    const productData = {
+        productName: req.body.productName,
+        slug: '', // Will be generated in pre-save hook
+        brand: req.body.brand,
+        category: req.body.category,
+        subCategory: req.body.subCategory,
+        overview: req.body.overview,
+        stock: req.body.stock,
+        deliveryDays: req.body.deliveryDays,
+        price: req.body.price,
+        oldPrice: req.body.oldPrice,
+        descriptions,
+        highlights,
+        specifications,
+        variants: updatedVariants,
+        image: req.body.image,
+        images: req.body.images,
+        seo
+    };
+
+    const product = await Product.create(productData);
 
     res.status(201).json({
         success: true,
         product,
     });
-});
+})
 
-//update product
+// update product
+// exports.updateProduct = catchAsyncError(async (req, res, next) => {
+//   const { slug } = req.params;
+
+//     let BASE_URL = process.env.BACKEND_URL;
+
+//     if (process.env.NODE_ENV === "production") {
+//         BASE_URL = `${req.protocol}://${req.get("host")}`;
+//     }
+
+//     const product = await Product.findOne({ slug });
+//     if (!product) {
+//         return res.status(404).json({ success: false, message: "Product not found" });
+//     }
+//     if (typeof req.body.category === 'string') {
+//         const foundCategory = await Category.findOne({ slug: req.body.category });
+//         if (!foundCategory) {
+//             return res.status(400).json({ success: false, message: 'Category not found' });
+//         }
+//         req.body.category = foundCategory.slug;
+
+//         // If you're using subCategory as slug (embedded):
+//         const foundSub = foundCategory.subcategories.find(
+//             (sub) => sub.slug === req.body.subCategory
+//         );
+//         if (!foundSub) {
+//             return res.status(400).json({ success: false, message: 'Subcategory not found' });
+//         }
+//         req.body.subCategory = foundSub.slug; // or foundSub.name
+//     }
+
+
+//     // 🔢 Convert number fields from string
+//     ['stock', 'price', 'oldPrice', 'deliveryDays'].forEach(field => {
+//         if (req.body[field] !== undefined) {
+//             req.body[field] = Number(req.body[field]);
+//         }
+//     });
+//     // Parse stringified JSON fields
+//     if (typeof req.body.specifications === "string") {
+//         req.body.specifications = JSON.parse(req.body.specifications);
+//     }
+//     if (typeof req.body.sizes === "string") {
+//         req.body.sizes = JSON.parse(req.body.sizes);
+//     }
+
+//     // update other fields ...
+//     for (const key in req.body) {
+//         if (key !== 'imagesToRemove' && key !== 'productName') {
+//             product[key] = req.body[key];
+//         }
+//     }
+
+//     if (req.body.productName) {
+//         product.productName = req.body.productName;
+//     }
+
+//     // Handle image removal
+//     const { imagesToRemove } = req.body;
+//     let updatedImages = product.images || [];
+
+//     if (imagesToRemove) {
+//         updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img.image));
+//     }
+
+//     // Add new images
+//     if (req.files && req.files.length > 0) {
+//         req.files.forEach((file) => {
+//             const imageUrl = `${BASE_URL}/uploads/product/${file.originalname}`;
+//             updatedImages.push({ image: imageUrl });
+//         });
+//     }
+
+//     if (updatedImages.length > 0) {
+//         product.image = updatedImages[0].image;
+//     }
+
+//     product.images = updatedImages;
+
+//     // SEO fields
+//     product.seo = {
+//         metaTitle: req.body.metaTitle || '',
+//         metaDescription: req.body.metaDescription || '',
+//         metaKeywords: req.body.metaKeywords || '',
+//         canonicalUrl: req.body.canonicalUrl || ''
+//     };
+
+//     await product.save();
+
+//     res.status(200).json({
+//         success: true,
+//         message: "Product updated",
+//         product
+//     });
+// });
+
 exports.updateProduct = catchAsyncError(async (req, res, next) => {
     const { slug } = req.params;
+    const product = await Product.findOne({ slug });
 
+    if (!product) {
+        return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    // BASE URL
     let BASE_URL = process.env.BACKEND_URL;
-
     if (process.env.NODE_ENV === "production") {
         BASE_URL = `${req.protocol}://${req.get("host")}`;
     }
 
-    const product = await Product.findOne({ slug });
-    if (!product) {
-        return res.status(404).json({ success: false, message: "Product not found" });
-    }
-    if (typeof req.body.category === 'string') {
-        const foundCategory = await Category.findOne({ slug: req.body.category });
-        if (!foundCategory) {
-            return res.status(400).json({ success: false, message: 'Category not found' });
+    const allUploadedImages = (req.files || []).map(file => ({
+        image: `${BASE_URL}/uploads/product/${file.filename}`,
+        name: file.filename
+    }));
+
+    // Parse all fields
+    const variants = JSON.parse(req.body.variants || '[]');
+    const specifications = JSON.parse(req.body.specifications || '[]');
+    const descriptions = req.body.descriptions || '[]';
+    const highlights = req.body.highlights || '[]';
+
+    // Prepare variant structure
+    let imgIndex = 0;
+
+    const updatedVariants = variants.map((variant) => {
+        const variantImgCount = variant.images?.length || 0;
+        const variantImgs = allUploadedImages.slice(imgIndex, imgIndex + variantImgCount).map(img => img.image);
+        imgIndex += variantImgCount;
+
+        // DELETE variant removed images
+        if (variant.removedImages?.length) {
+            variant.removedImages.forEach(img => {
+                const fileName = img.split('/').pop();
+                const filePath = `uploads/product/${fileName}`;
+                fs.existsSync(filePath) && fs.unlinkSync(filePath);
+            });
         }
-        req.body.category = foundCategory.slug;
 
-        // If you're using subCategory as slug (embedded):
-        const foundSub = foundCategory.subcategories.find(
-            (sub) => sub.slug === req.body.subCategory
-        );
-        if (!foundSub) {
-            return res.status(400).json({ success: false, message: 'Subcategory not found' });
-        }
-        req.body.subCategory = foundSub.slug; // or foundSub.name
-    }
+        const sizes = (variant.sizes || []).map(size => {
+            const sizeImgCount = size.images?.length || 0;
+            const sizeImgs = allUploadedImages.slice(imgIndex, imgIndex + sizeImgCount).map(img => img.image);
+            imgIndex += sizeImgCount;
 
+            // DELETE removed size images
+            if (size.removedImages?.length) {
+                size.removedImages.forEach(img => {
+                    const fileName = img.split('/').pop();
+                    const filePath = `uploads/product/${fileName}`;
+                    fs.existsSync(filePath) && fs.unlinkSync(filePath);
+                });
+            }
 
-    // 🔢 Convert number fields from string
-    ['stock', 'price', 'oldPrice', 'deliveryDays'].forEach(field => {
-        if (req.body[field] !== undefined) {
-            req.body[field] = Number(req.body[field]);
-        }
-    });
-    // Parse stringified JSON fields
-    if (typeof req.body.specifications === "string") {
-        req.body.specifications = JSON.parse(req.body.specifications);
-    }
-    if (typeof req.body.sizes === "string") {
-        req.body.sizes = JSON.parse(req.body.sizes);
-    }
-
-    // update other fields ...
-    for (const key in req.body) {
-        if (key !== 'imagesToRemove' && key !== 'productName') {
-            product[key] = req.body[key];
-        }
-    }
-
-    if (req.body.productName) {
-        product.productName = req.body.productName;
-    }
-
-    // Handle image removal
-    const { imagesToRemove } = req.body;
-    let updatedImages = product.images || [];
-
-    if (imagesToRemove) {
-        updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img.image));
-    }
-
-    // Add new images
-    if (req.files && req.files.length > 0) {
-        req.files.forEach((file) => {
-            const imageUrl = `${BASE_URL}/uploads/product/${file.originalname}`;
-            updatedImages.push({ image: imageUrl });
+            return {
+                ...size,
+                price: Number(size.price || 0),
+                stock: Number(size.stock || 0),
+                images: [...(size.existingImages || []), ...sizeImgs]
+            };
         });
-    }
 
-    if (updatedImages.length > 0) {
-        product.image = updatedImages[0].image;
-    }
+        return {
+            color: variant.color,
+            colorCode: variant.colorCode,
+            price: Number(variant.price || 0),
+            stock: Number(variant.stock || 0),
+            images: [...(variant.existingImages || []), ...variantImgs],
+            sizes
+        };
+    });
 
-    product.images = updatedImages;
-
-    // SEO fields
+    // Update base fields
+    product.productName = req.body.productName;
+    product.brand = req.body.brand;
+    product.category = req.body.category;
+    product.subCategory = req.body.subCategory;
+    product.overview = req.body.overview;
+    product.stock = Number(req.body.stock || 0);
+    product.deliveryDays = Number(req.body.deliveryDays || 0);
+    product.price = Number(req.body.price || 0);
+    product.oldPrice = Number(req.body.oldPrice || 0);
+    product.descriptions = descriptions;
+    product.highlights = highlights;
+    product.specifications = specifications;
+    product.variants = updatedVariants;
     product.seo = {
         metaTitle: req.body.metaTitle || '',
         metaDescription: req.body.metaDescription || '',
@@ -304,14 +488,17 @@ exports.updateProduct = catchAsyncError(async (req, res, next) => {
         canonicalUrl: req.body.canonicalUrl || ''
     };
 
+    // Save
     await product.save();
 
     res.status(200).json({
         success: true,
-        message: "Product updated",
+        message: "Product updated successfully",
         product
     });
 });
+
+
 
 //Get Single Product - api/v1/product/:id
 exports.getSingleProduct = catchAsyncError(async (req, res, next) => {

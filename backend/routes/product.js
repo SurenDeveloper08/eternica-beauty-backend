@@ -31,10 +31,10 @@ router.route('/products/category').get(getProductsByCategory);
 router.route('/products/subcategory').get(getProductsBySubCategory);
 router.route('/products/related').get(getProductsByrelCategory);
 //Admin routes
-router.route('/admin/product/new').post(upload.array('images'), newProduct);
+router.route('/admin/product/new').post(upload.array('files'), newProduct);
 router.route('/admin/products').get(isAuthenticatedUser, authorizeRoles('admin'), getAdminProducts);
 router.route('/admin/product/:slug').delete(isAuthenticatedUser, authorizeRoles('admin'), deleteProduct);
-router.route('/admin/product/:slug').put(isAuthenticatedUser, authorizeRoles('admin'), upload.array('images'), updateProduct);
+router.route('/admin/product/:slug').put(isAuthenticatedUser, authorizeRoles('admin'), upload.array('variantImages'), updateProduct);
 router.route('/admin/reviews').get(isAuthenticatedUser, authorizeRoles('admin'), getReviews)
 router.route('/admin/review').delete(isAuthenticatedUser, authorizeRoles('admin'), deleteReview)
 

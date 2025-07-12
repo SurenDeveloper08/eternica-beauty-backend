@@ -153,20 +153,61 @@ exports.addSubcategory = async (req, res, next) => {
   }
 };
 
+// exports.getSubcategory = async (req, res) => {
+//   const { categorySlug } = req.params;
+  
+//   try {
+//     const subcategories = await Category.findOne({slug: categorySlug});
+//     console.log(subcategories);
+    
+//     res.status(201).json({
+//       success: true,
+//       data: subcategories.subcategories
+//     })
+//   } catch (error) {
+//     console.error("Error fetching subcategories:", error);
+//     res.status(500).json({ error: "Failed to fetch subcategories" });
+//   }
+// };
+
 exports.getSubcategory = async (req, res) => {
   const { categorySlug } = req.params;
-  
+
+  // 1. Validate input
+  if (!categorySlug || typeof categorySlug !== 'string') {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid or missing category slug',
+    });
+  }
+
   try {
-    const subcategories = await Category.findOne({slug: categorySlug});
-    res.status(201).json({
+    // 2. Fetch category with matching slug
+    const category = await Category.findOne({ slug: categorySlug });
+
+    // 3. Check if category exists
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found',
+      });
+    }
+   
+    // 4. Return subcategories
+    res.status(200).json({
       success: true,
-      data: subcategories.subcategories
-    })
+      data: category.subcategories || [], // fallback to empty array
+    });
+
   } catch (error) {
-    console.error("Error fetching subcategories:", error);
-    res.status(500).json({ error: "Failed to fetch subcategories" });
+    console.error('Error fetching subcategories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching subcategories',
+    });
   }
 };
+
 exports.deleteCategory = catchAsyncError(async (req, res, next) => {
   const categoryId = req.params.id;
 

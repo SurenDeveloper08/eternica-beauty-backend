@@ -12,7 +12,7 @@ const server = app.listen(process.env.PORT, () => {
 
 const io = socketIO(server, {
     cors: {
-        origin: '*',
+        origin: process.env.FRONTEND_URL || 'https://spastore.me',
         methods: ['GET', 'POST']
     }
 });

@@ -7,6 +7,8 @@ const crypto = require('crypto')
 const cartItemSchema = new mongoose.Schema({
     slug: { type: String, required: true },
     quantity: { type: Number, default: 1 },
+    color: { type: String }, // optional color
+    size: { type: String }   // optional size
 });
 
 const deliveryAddressSchema = new mongoose.Schema({

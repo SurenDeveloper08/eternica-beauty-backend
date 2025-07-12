@@ -20,6 +20,12 @@ const itemsSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    color: {
+        type: String
+    },
+    size: {
+        type: String
+    },
     product: {
         slug: {
             type: String
@@ -32,7 +38,7 @@ const itemsSchema = new mongoose.Schema({
         },
         image: {
             type: String
-        }
+        },
     },
     subtotal: {
         type: String,

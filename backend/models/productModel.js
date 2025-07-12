@@ -1,10 +1,6 @@
 const mongoose = require("mongoose");
 const slugify = require('slugify');
-const sizeSchema = new mongoose.Schema({
-    name: String,
-    quantity: Number,
-    price: Number,
-});
+
 
 const specificationSchema = new mongoose.Schema({
     key: String,
@@ -23,19 +19,34 @@ const productSchema = new mongoose.Schema({
     productName: { type: String, required: true },
     slug: { type: String, unique: true, index: true },
     category: { type: String, required: true },
-    subCategory:{ type: String, required: true },
+    subCategory: { type: String, required: true },
     descriptions: [{ type: String }],
     highlights: [{ type: String }],
     overview: { type: String },
     specifications: [specificationSchema],
-    colors: [{ type: String }],
-    sizes: [sizeSchema],
     stock: { type: Number, default: true },
     deliveryDays: { type: Number, required: true },
     price: { type: Number, required: true },
     oldPrice: { type: Number },
     image: { type: String },
     brand: { type: String, default: 'Brand not specified' },
+    variants: [
+        {
+            color: String,
+            colorCode: String,     // optional hex or image
+            images: [String],      // images for this color variant
+            sizes: [
+                {
+                    name: String,       
+                    price: Number,
+                    stock: Number,
+                    images: [String]    // optional size-specific images
+                }
+            ],
+            price: Number,         // optional: price for color-only variant
+            stock: Number          // optional: stock for color-only variant
+        }
+    ],
     images: [{
         image: {
             type: String,
@@ -66,5 +77,5 @@ productSchema.pre('validate', async function (next) {
 });
 
 
-
+//routes
 module.exports = mongoose.model("Product", productSchema);

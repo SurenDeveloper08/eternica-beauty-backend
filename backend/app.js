@@ -9,21 +9,15 @@ const cors = require('cors');
 dotenv.config({ path: path.join(__dirname, "config/config.env") });
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://spastore.me/',
+  origin: process.env.FRONTEND_URL || 'https://spastore.me',
   credentials: true,
 }));
 
-app.options('*', cors({
-  origin: process.env.FRONTEND_URL || 'https://spastore.me/',
-  credentials: true,
-}));
 
 // Also needed:
 app.use(express.json());
 app.use(require('cookie-parser')());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
-
-
 
 const products = require('./routes/product')
 const auth = require('./routes/auth')
@@ -41,6 +35,7 @@ const highlight = require('./routes/ProductHighlight')
 const seo = require('./routes/seo')
 const review = require('./routes/review')
 const gcc = require('./routes/gccCountry')
+
 app.use('/api/v1/', products);
 app.use('/api/v1/', category);
 app.use('/api/v1/', auth);

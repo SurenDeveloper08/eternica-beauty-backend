@@ -7,6 +7,58 @@ const ErrorHandler = require('../utils/errorHandler');
 const moment = require('moment');
 const sendEmail = require('../utils/email');
 const { loginUser } = require('./authController');
+
+async function updateStock(slug, quantity, color = null, size = null) {
+    const product = await Product.findOne({ slug });
+    if (!product) throw new Error("Product not found");
+
+    // 1️⃣ No Variants
+    if (!product.variants || product.variants.length === 0) {
+        product.stock = Math.max((product.stock || 0) - quantity, 0);
+        return await product.save({ validateBeforeSave: false });
+    }
+
+    // 2️⃣ Color + Size
+    if (color && size) {
+        const variant = product.variants.find(v => v.color === color);
+        if (!variant) throw new Error("Color variant not found");
+
+        const sizeObj = variant.sizes?.find(s => s.name === size);
+        if (!sizeObj) throw new Error("Size not found in selected color");
+
+        // Deduct stock from both size-level and color-level
+        sizeObj.stock = Math.max((sizeObj.stock || 0) - quantity, 0);
+        variant.stock = Math.max((variant.stock || 0) - quantity, 0);
+
+        return await product.save({ validateBeforeSave: false });
+    }
+
+    // 3️⃣ Color-only
+    if (color && !size) {
+        const variant = product.variants.find(v => v.color === color);
+        if (!variant) throw new Error("Color variant not found");
+
+        variant.stock = Math.max((variant.stock || 0) - quantity, 0);
+        return await product.save({ validateBeforeSave: false });
+    }
+
+    // 4️⃣ Size-only (no color)
+    if (!color && size) {
+        const variant = product.variants.find(v =>
+            (v.sizes || []).some(s => s.name === size)
+        );
+        if (!variant) throw new Error("Size-only variant not found");
+
+        const sizeObj = variant.sizes.find(s => s.name === size);
+        sizeObj.stock = Math.max((sizeObj.stock || 0) - quantity, 0);
+        return await product.save({ validateBeforeSave: false });
+    }
+
+    throw new Error("Invalid variant combination for stock update");
+}
+
+
+
 exports.createOrder = catchAsyncError(async (req, res, next) => {
     try {
         const {
@@ -20,7 +72,8 @@ exports.createOrder = catchAsyncError(async (req, res, next) => {
 
         const userId = req.user._id;
         const customerEmail = shippingInfo.email;
-        const adminEmail = process.env.ADMIN_EMAIL;
+        const adminEmail1 = process.env.ADMIN_EMAIL1;
+        const adminEmail2 = process.env.ADMIN_EMAIL2;
         const today = moment().format('DDMMYYYY'); // for orderNumber
         const now = new Date(); // actual date field
         // Step 1: Get today's counter
@@ -89,11 +142,17 @@ exports.createOrder = catchAsyncError(async (req, res, next) => {
         });
         try {
             await sendEmail(customerEmail, 'customer', order, 'Ordered');
-            await sendEmail(adminEmail, 'admin', order, 'Ordered');
+            await sendEmail(adminEmail1, 'admin', order, 'Ordered');
+            await sendEmail(adminEmail2, 'admin', order, 'Ordered');
 
-           order.items.forEach(async orderItem => {
-                await updateStock(orderItem.slug, orderItem.quantity)
-            })
+            // order.items.forEach(async orderItem => {
+            //     await updateStock(orderItem.slug, orderItem.quantity)
+            // })
+            await Promise.all(
+                order.items.map(item =>
+                    updateStock(item.slug, item.quantity, item.color || null, item.size || null)
+                )
+            );
 
         } catch (emailErr) {
             console.error('Email send error:', emailErr.message);
@@ -176,7 +235,8 @@ exports.updateOrder = catchAsyncError(async (req, res, next) => {
 
     const { shippingInfo, orderNumber } = order;
     const customerEmail = shippingInfo.email;
-    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminEmail1 = process.env.ADMIN_EMAIL1;
+    const adminEmail2 = process.env.ADMIN_EMAIL2;
 
     const updateData = { orderStatus: status };
     if (invoiceFile) {
@@ -195,10 +255,12 @@ exports.updateOrder = catchAsyncError(async (req, res, next) => {
 
 
     if (status === 'Ordered') {
-        await sendEmail(adminEmail, 'admin', order, status);
+        await sendEmail(adminEmail1, 'admin', order, status);
+        await sendEmail(adminEmail2, 'admin', order, status);
     }
     else if (status === 'Delivered') {
-        await sendEmail(adminEmail, 'admin', order, status, updateData.invoice);
+        await sendEmail(adminEmail1, 'admin', order, status, updateData?.invoice);
+        await sendEmail(adminEmail2, 'admin', order, status, updateData?.invoice);
     }
 
     res.status(200).json({
@@ -278,12 +340,14 @@ exports.orders = catchAsyncError(async (req, res, next) => {
     })
 })
 
-async function updateStock(slug, quantity) {
-    const product = await Product.findOne({ slug: slug });
+// async function updateStock(slug, quantity) {
+//     const product = await Product.findOne({ slug: slug });
 
-    product.stock = product.stock - quantity;
-    product.save({ validateBeforeSave: false })
-}
+//     product.stock = product.stock - quantity;
+//     product.save({ validateBeforeSave: false })
+// }
+
+
 
 //Admin: Delete Order - api/v1/order/:id
 exports.deleteOrder = catchAsyncError(async (req, res, next) => {
