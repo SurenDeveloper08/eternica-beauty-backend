@@ -8,10 +8,10 @@ exports.seasonUpload = catchAsyncError(async (req, res, next) => {
      const { name, category, subCategory, sortOrder } = req.body;
     let banners = [];
 
-    let BASE_URL = process.env.BACKEND_URL;
-    if (process.env.NODE_ENV === "production") {
-        BASE_URL = `${req.protocol}://${req.get("host")}`;
-    }
+    
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
 
      const safeNames = Array.isArray(name) ? name : [name];
     const safeCategory = Array.isArray(category) ? category : [category];
@@ -97,10 +97,10 @@ exports.updateSeason = catchAsyncError(async (req, res, next) => {
     const { id } = req.params;
     const { name, category, subCategory, sortOrder } = req.body;
 
-    let BASE_URL = process.env.BACKEND_URL;
-    if (process.env.NODE_ENV === "production") {
-        BASE_URL = `${req.protocol}://${req.get("host")}`;
-    }
+    
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
 
     const season = await Season.findById(id);
     if (!season) {

@@ -8,10 +8,10 @@ exports.posterUpload = catchAsyncError(async (req, res, next) => {
 
     let banners = [];
 
-    let BASE_URL = process.env.BACKEND_URL;
-    if (process.env.NODE_ENV === "production") {
-        BASE_URL = `${req.protocol}://${req.get("host")}`;
-    }
+    
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
 
     if (files.length > 1) {
         for (let i = 0; i < files.length; i++) {
@@ -89,10 +89,10 @@ exports.updatePoster = catchAsyncError(async (req, res, next) => {
     const { id } = req.params;
     const { name, link, isActive, sortOrder } = req.body;
 
-    let BASE_URL = process.env.BACKEND_URL;
-    if (process.env.NODE_ENV === "production") {
-        BASE_URL = `${req.protocol}://${req.get("host")}`;
-    }
+    
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
 
     const updateData = {
         name,

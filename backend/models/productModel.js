@@ -53,6 +53,7 @@ const productSchema = new mongoose.Schema({
             required: true
         }
     }],
+    isActive: { type: Boolean, default: true },
     seo: seoSchema,
 }, { timestamps: true });
 

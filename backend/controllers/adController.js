@@ -8,12 +8,11 @@ exports.adUpload = catchAsyncError(async (req, res, next) => {
     const { names, links } = req.body;
     let banners = [];
 
-    let BASE_URL = process.env.BACKEND_URL;
-    if (process.env.NODE_ENV === "production") {
-        BASE_URL = `${req.protocol}://${req.get("host")}`;
-    }
-    
-    
+
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
+
     for (let i = 0; i < files.length; i++) {
         if (names[i] && links[i]) {
             banners.push({

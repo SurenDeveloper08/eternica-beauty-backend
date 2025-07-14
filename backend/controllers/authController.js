@@ -12,10 +12,10 @@ exports.registerUser = catchAsyncError(async (req, res, next) => {
 
     let avatar;
 
-    let BASE_URL = process.env.BACKEND_URL;
-    if (process.env.NODE_ENV === "production") {
-        BASE_URL = `${req.protocol}://${req.get('host')}`
-    }
+
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
 
     if (req.file) {
         avatar = `${BASE_URL}/uploads/user/${req.file.originalname}`
@@ -236,11 +236,10 @@ exports.forgotPassword = catchAsyncError(async (req, res, next) => {
     const resetToken = user.getResetToken();
     await user.save({ validateBeforeSave: false })
 
-    let BASE_URL = process.env.FRONTEND_URL;
-    if (process.env.NODE_ENV === "production") {
-        BASE_URL = `${req.protocol}://${req.get('host')}`
-    }
-
+    
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
 
     //Create reset url
     const resetUrl = `${BASE_URL}/password/reset/${resetToken}`;
@@ -329,10 +328,10 @@ exports.updateProfile = catchAsyncError(async (req, res, next) => {
     }
 
     let avatar;
-    let BASE_URL = process.env.BACKEND_URL;
-    if (process.env.NODE_ENV === "production") {
-        BASE_URL = `${req.protocol}://${req.get('host')}`
-    }
+    
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
 
     if (req.file) {
         avatar = `${BASE_URL}/uploads/user/${req.file.originalname}`

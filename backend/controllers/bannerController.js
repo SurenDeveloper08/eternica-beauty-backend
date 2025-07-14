@@ -6,10 +6,10 @@ exports.bannerUpload = catchAsyncError(async (req, res, next) => {
     const files = req.files;
     const { names, links, sortOrders } = req.body;
 
-    let BASE_URL = process.env.BACKEND_URL;
-    if (process.env.NODE_ENV === "production") {
-        BASE_URL = `${req.protocol}://${req.get("host")}`;
-    }
+    
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
 
     const safeNames = Array.isArray(names) ? names : [names];
     const safeLinks = Array.isArray(links) ? links : [links];

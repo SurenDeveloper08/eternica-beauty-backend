@@ -16,6 +16,8 @@ const upload = multer({
     })
 })
 
+
+
 router.route('/products').get(getProducts);
 router.route('/product/:slug').get(getSingleProduct);
 router.route('/products/search').get(searchProducts);
@@ -31,10 +33,19 @@ router.route('/products/category').get(getProductsByCategory);
 router.route('/products/subcategory').get(getProductsBySubCategory);
 router.route('/products/related').get(getProductsByrelCategory);
 //Admin routes
-router.route('/admin/product/new').post(upload.array('files'), newProduct);
+router.route('/admin/product/new').post(isAuthenticatedUser, upload.fields([
+    { name: 'productImage', maxCount: 1 },
+    { name: 'files' }, // gallery images
+    { name: 'variantImages' }, // variant/size-level images
+]), newProduct);
 router.route('/admin/products').get(isAuthenticatedUser, authorizeRoles('admin'), getAdminProducts);
 router.route('/admin/product/:slug').delete(isAuthenticatedUser, authorizeRoles('admin'), deleteProduct);
-router.route('/admin/product/:slug').put(isAuthenticatedUser, authorizeRoles('admin'), upload.array('variantImages'), updateProduct);
+router.route('/admin/product/:slug').put(isAuthenticatedUser, authorizeRoles('admin'),  upload.fields([
+    { name: 'productImage', maxCount: 1 },
+    { name: 'files' }, // gallery
+    { name: 'variantImages' } // variant/size
+  ]), updateProduct);
+router.delete('/product/:slug', isAuthenticatedUser, authorizeRoles('admin'), deleteProduct);
 router.route('/admin/reviews').get(isAuthenticatedUser, authorizeRoles('admin'), getReviews)
 router.route('/admin/review').delete(isAuthenticatedUser, authorizeRoles('admin'), deleteReview)
 

@@ -32,10 +32,10 @@ exports.createCategory = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  let BASE_URL = process.env.BACKEND_URL;
-  if (process.env.NODE_ENV === "production") {
-    BASE_URL = `${req.protocol}://${req.get("host")}`;
-  }
+  
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
 
   let image = "";
   if (req.file) {
@@ -110,10 +110,10 @@ exports.addSubcategory = async (req, res, next) => {
     if (!category) {
       return res.status(404).json({ error: "Category not found" });
     }
-    let BASE_URL = process.env.BACKEND_URL;
-    if (process.env.NODE_ENV === "production") {
-      BASE_URL = `${req.protocol}://${req.get("host")}`;
-    }
+    
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
 
    
    subcategories.forEach(sub => {
@@ -278,11 +278,10 @@ exports.updateCategory = catchAsyncError(async (req, res, next) => {
   const { name, sortOrder: categorySortOrder } = req.body;
 
   const { id } = req.params;
-
-  let BASE_URL = process.env.BACKEND_URL;
-  if (process.env.NODE_ENV === "production") {
-    BASE_URL = `${req.protocol}://${req.get("host")}`;
-  }
+  
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
 
   let image;
   if (req.file) {
@@ -335,10 +334,10 @@ exports.updateSubcategory = async (req, res) => {
   try {
     const { categoryId, subCategoryId } = req.params;
     const { name, sortOrder } = req.body;
-    let BASE_URL = process.env.BACKEND_URL;
-    if (process.env.NODE_ENV === "production") {
-      BASE_URL = `${req.protocol}://${req.get("host")}`;
-    }
+   
+    let BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
 
     let image;
     if (req.file) {
