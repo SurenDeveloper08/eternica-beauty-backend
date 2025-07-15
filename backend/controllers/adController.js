@@ -30,7 +30,6 @@ exports.adUpload = catchAsyncError(async (req, res, next) => {
     });
 });
 
-
 exports.getAds = catchAsyncError(async (req, res, next) => {
 
     const data = await Ad.find();

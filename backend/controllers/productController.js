@@ -7,6 +7,13 @@ const slugify = require('slugify');
 const fs = require('fs');
 const path = require('path');
 
+function deleteFileIfExists(filePath) {
+  try {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  } catch (err) {
+    console.error("❌ Error deleting file:", err);
+  }
+}
 
 exports.getProductsByCategory = catchAsyncError(async (req, res, next) => {
     try {
@@ -158,9 +165,6 @@ exports.searchProducts = catchAsyncError(async (req, res, next) => {
 })
 //Create Product - /api/v1/product/new
 exports.newProduct = catchAsyncError(async (req, res, next) => {
-    console.log('productImage:', req.files.productImage?.map(f => f.filename));
-    console.log('galleryImages:', req.files.files?.map(f => f.filename));
-    console.log('variantImages:', req.files.variantImages?.map(f => f.filename));
 
     const BASE_URL = process.env.NODE_ENV === "production"
         ? process.env.BACKEND_URL
@@ -210,7 +214,7 @@ exports.newProduct = catchAsyncError(async (req, res, next) => {
     });
 
     // 5. Parse JSON fields
-    const descriptions =req.body?.descriptions;
+    const descriptions = req.body?.descriptions;
     const highlights = req.body.highlights;
     const specifications = JSON.parse(req.body.specifications || '[]');
     const variants = JSON.parse(req.body.variants || '[]');
@@ -328,211 +332,8 @@ exports.deleteProduct = async (req, res) => {
         res.status(500).json({ message: 'Server error while deleting product' });
     }
 };
-// update product
-// exports.updateProduct = catchAsyncError(async (req, res, next) => {
-//   const { slug } = req.params;
-
-//     let BASE_URL = process.env.BACKEND_URL;
-
-//     if (process.env.NODE_ENV === "production") {
-//         BASE_URL = `${req.protocol}://${req.get("host")}`;
-//     }
-
-//     const product = await Product.findOne({ slug });
-//     if (!product) {
-//         return res.status(404).json({ success: false, message: "Product not found" });
-//     }
-//     if (typeof req.body.category === 'string') {
-//         const foundCategory = await Category.findOne({ slug: req.body.category });
-//         if (!foundCategory) {
-//             return res.status(400).json({ success: false, message: 'Category not found' });
-//         }
-//         req.body.category = foundCategory.slug;
-
-//         // If you're using subCategory as slug (embedded):
-//         const foundSub = foundCategory.subcategories.find(
-//             (sub) => sub.slug === req.body.subCategory
-//         );
-//         if (!foundSub) {
-//             return res.status(400).json({ success: false, message: 'Subcategory not found' });
-//         }
-//         req.body.subCategory = foundSub.slug; // or foundSub.name
-//     }
-
-
-//     // 🔢 Convert number fields from string
-//     ['stock', 'price', 'oldPrice', 'deliveryDays'].forEach(field => {
-//         if (req.body[field] !== undefined) {
-//             req.body[field] = Number(req.body[field]);
-//         }
-//     });
-//     // Parse stringified JSON fields
-//     if (typeof req.body.specifications === "string") {
-//         req.body.specifications = JSON.parse(req.body.specifications);
-//     }
-//     if (typeof req.body.sizes === "string") {
-//         req.body.sizes = JSON.parse(req.body.sizes);
-//     }
-
-//     // update other fields ...
-//     for (const key in req.body) {
-//         if (key !== 'imagesToRemove' && key !== 'productName') {
-//             product[key] = req.body[key];
-//         }
-//     }
-
-//     if (req.body.productName) {
-//         product.productName = req.body.productName;
-//     }
-
-//     // Handle image removal
-//     const { imagesToRemove } = req.body;
-//     let updatedImages = product.images || [];
-
-//     if (imagesToRemove) {
-//         updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img.image));
-//     }
-
-//     // Add new images
-//     if (req.files && req.files.length > 0) {
-//         req.files.forEach((file) => {
-//             const imageUrl = `${BASE_URL}/uploads/product/${file.originalname}`;
-//             updatedImages.push({ image: imageUrl });
-//         });
-//     }
-
-//     if (updatedImages.length > 0) {
-//         product.image = updatedImages[0].image;
-//     }
-
-//     product.images = updatedImages;
-
-//     // SEO fields
-//     product.seo = {
-//         metaTitle: req.body.metaTitle || '',
-//         metaDescription: req.body.metaDescription || '',
-//         metaKeywords: req.body.metaKeywords || '',
-//         canonicalUrl: req.body.canonicalUrl || ''
-//     };
-
-//     await product.save();
-
-//     res.status(200).json({
-//         success: true,
-//         message: "Product updated",
-//         product
-//     });
-// });
 
 exports.updateProducts = catchAsyncError(async (req, res, next) => {
-    const { slug } = req.params;
-    const product = await Product.findOne({ slug });
-
-    if (!product) {
-        return res.status(404).json({ success: false, message: 'Product not found' });
-    }
-
-
-    let BASE_URL = process.env.NODE_ENV === "production"
-        ? process.env.BACKEND_URL
-        : `${req.protocol}://${req.get("host")}`;
-
-    const allUploadedImages = (req.files || []).map(file => ({
-        image: `${BASE_URL}/uploads/product/${file.filename}`,
-        name: file.filename
-    }));
-
-
-    // Parse all fields
-    const variants = JSON.parse(req.body.variants || '[]');
-    const specifications = JSON.parse(req.body.specifications || '[]');
-    const descriptions = req.body.descriptions || '[]';
-    const highlights = req.body.highlights || '[]';
-
-    // Prepare variant structure
-    let imgIndex = 0;
-
-    const updatedVariants = variants.map((variant) => {
-        const variantImgCount = variant.images?.length || 0;
-        const variantImgs = allUploadedImages.slice(imgIndex, imgIndex + variantImgCount).map(img => img.image);
-        imgIndex += variantImgCount;
-
-        // DELETE variant removed images
-        if (variant.removedImages?.length) {
-            variant.removedImages.forEach(img => {
-                const fileName = img.split('/').pop();
-                const filePath = `uploads/product/${fileName}`;
-                fs.existsSync(filePath) && fs.unlinkSync(filePath);
-            });
-        }
-
-        const sizes = (variant.sizes || []).map(size => {
-            const sizeImgCount = size.images?.length || 0;
-            const sizeImgs = allUploadedImages.slice(imgIndex, imgIndex + sizeImgCount).map(img => img.image);
-            imgIndex += sizeImgCount;
-
-            // DELETE removed size images
-            if (size.removedImages?.length) {
-                size.removedImages.forEach(img => {
-                    const fileName = img.split('/').pop();
-                    const filePath = `uploads/product/${fileName}`;
-                    fs.existsSync(filePath) && fs.unlinkSync(filePath);
-                });
-            }
-
-            return {
-                ...size,
-                price: Number(size.price || 0),
-                stock: Number(size.stock || 0),
-                images: [...(size.existingImages || []), ...sizeImgs]
-            };
-        });
-
-        return {
-            color: variant.color,
-            colorCode: variant.colorCode,
-            price: Number(variant.price || 0),
-            stock: Number(variant.stock || 0),
-            images: [...(variant.existingImages || []), ...variantImgs],
-            sizes
-        };
-    });
-    if (req.files?.productImage?.length > 0) {
-        const file = req.files.productImage[0];
-        product.image = `${BASE_URL}/uploads/product/${file.filename}`;
-    }
-    // Update base fields
-    product.productName = req.body.productName;
-    product.brand = req.body.brand;
-    product.category = req.body.category;
-    product.subCategory = req.body.subCategory;
-    product.overview = req.body.overview;
-    product.stock = Number(req.body.stock || 0);
-    product.deliveryDays = Number(req.body.deliveryDays || 0);
-    product.price = Number(req.body.price || 0);
-    product.oldPrice = Number(req.body.oldPrice || 0);
-    product.descriptions = descriptions;
-    product.highlights = highlights;
-    product.specifications = specifications;
-    product.variants = updatedVariants;
-    product.seo = {
-        metaTitle: req.body.metaTitle || '',
-        metaDescription: req.body.metaDescription || '',
-        metaKeywords: req.body.metaKeywords || '',
-        canonicalUrl: req.body.canonicalUrl || ''
-    };
-
-    // Save
-    await product.save();
-
-    res.status(200).json({
-        success: true,
-        message: "Product updated successfully",
-        product
-    });
-});
-
-exports.updateProduct = catchAsyncError(async (req, res, next) => {
     const { slug } = req.params;
     const product = await Product.findOne({ slug });
 
@@ -655,6 +456,155 @@ exports.updateProduct = catchAsyncError(async (req, res, next) => {
     });
 });
 
+exports.updateProduct = catchAsyncError(async (req, res, next) => {
+  const { slug } = req.params;
+  const product = await Product.findOne({ slug });
+
+  if (!product) {
+    return res.status(404).json({ success: false, message: "Product not found" });
+  }
+
+  const BASE_URL =
+    process.env.NODE_ENV === "production"
+      ? process.env.BACKEND_URL
+      : `${req.protocol}://${req.get("host")}`;
+
+  // ✅ Uploaded files
+  const uploadedMainImage = req.files?.productImage?.[0] || null;
+  const uploadedGalleryImages = req.files?.files || [];
+  const uploadedVariantImages = req.files?.variantImages || [];
+
+  // ✅ Combine gallery & variant uploads (we will slice accordingly)
+  const allUploadedImages = [
+    ...uploadedGalleryImages,
+    ...uploadedVariantImages,
+  ].map((f) => `${BASE_URL}/uploads/product/${f.filename}`);
+
+  // ✅ Handle GALLERY
+  const removedGalleryImages = JSON.parse(req.body.removedGalleryImages || "[]"); 
+  const existingGalleryImages = JSON.parse(req.body.existingGalleryImages || "[]");
+
+  // 🔥 Physically delete removed gallery images
+  removedGalleryImages.forEach((img) => {
+    try {
+      const fileName = img.split("/").pop();
+      const filePath = path.join(__dirname, "..", "uploads", "product", fileName);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (err) {
+      console.error("Error removing gallery image:", err);
+    }
+  });
+
+  // ✅ Final gallery image array (keep existing + add new)
+  const finalGalleryImages = [
+    ...existingGalleryImages,
+    ...uploadedGalleryImages.map((f) => `${BASE_URL}/uploads/product/${f.filename}`),
+  ].map((url) => ({ image: url }));
+
+  // ✅ Handle VARIANTS & SIZES
+  let imgIndex = uploadedGalleryImages.length; // skip gallery images
+  const variantsFromClient = JSON.parse(req.body.variants || "[]");
+
+  const updatedVariants = variantsFromClient.map((variant) => {
+    // delete removed variant-level images
+    (variant.removedImages || []).forEach((img) => {
+      try {
+        const fileName = img.split("/").pop();
+        const filePath = path.join(__dirname, "..", "uploads", "product", fileName);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      } catch (err) {
+        console.error("Error removing variant image:", err);
+      }
+    });
+
+    const newVariantImageCount = (variant.images || []).filter((i) => typeof i === "string" ? false : true).length; 
+    // But your frontend already appends new images separately, so we trust your newImageCount if you send it
+    const newVariantImages = (variant.images || [])
+      .filter((i) => typeof i !== "string") // only File names
+      .map((_, idx) => allUploadedImages[imgIndex + idx]);
+    imgIndex += newVariantImages.length;
+
+    const finalVariantImages = [
+      ...(variant.existingImages || []),
+      ...newVariantImages,
+    ];
+
+    // ✅ handle sizes
+    const updatedSizes = (variant.sizes || []).map((size) => {
+      (size.removedImages || []).forEach((img) => {
+        try {
+          const fileName = img.split("/").pop();
+          const filePath = path.join(__dirname, "..", "uploads", "product", fileName);
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        } catch (err) {
+          console.error("Error removing size image:", err);
+        }
+      });
+
+      const newSizeImages = (size.images || [])
+        .filter((i) => typeof i !== "string")
+        .map((_, idx) => allUploadedImages[imgIndex + idx]);
+      imgIndex += newSizeImages.length;
+
+      return {
+        ...size,
+        price: Number(size.price || 0),
+        stock: Number(size.stock || 0),
+        images: [...(size.existingImages || []), ...newSizeImages],
+      };
+    });
+
+    return {
+      color: variant.color,
+      colorCode: variant.colorCode,
+      price: Number(variant.price || 0),
+      stock: Number(variant.stock || 0),
+      images: finalVariantImages,
+      sizes: updatedSizes,
+    };
+  });
+
+  // ✅ Update main image if new uploaded
+  if (uploadedMainImage) {
+    product.image = `${BASE_URL}/uploads/product/${uploadedMainImage.filename}`;
+  }
+
+  // ✅ Parse JSON fields properly
+  let descriptions = req.body.descriptions || "[]";
+  let highlights = req.body.highlights || "[]";
+  
+
+  // ✅ Update product fields
+  product.productName = req.body.productName;
+  product.brand = req.body.brand;
+  product.category = req.body.category;
+  product.subCategory = req.body.subCategory;
+  product.overview = req.body.overview;
+  product.stock = Number(req.body.stock || 0);
+  product.deliveryDays = Number(req.body.deliveryDays || 0);
+  product.price = Number(req.body.price || 0);
+  product.oldPrice = Number(req.body.oldPrice || 0);
+  product.descriptions = descriptions;
+  product.highlights = highlights;
+  product.specifications = JSON.parse(req.body.specifications || "[]");
+  product.images = finalGalleryImages;
+  product.variants = updatedVariants;
+  product.seo = {
+    metaTitle: req.body.metaTitle || "",
+    metaDescription: req.body.metaDescription || "",
+    metaKeywords: req.body.metaKeywords || "",
+    canonicalUrl: req.body.canonicalUrl || "",
+  };
+
+  await product.save();
+
+  return res.status(200).json({
+    success: true,
+    message: "✅ Product updated successfully",
+    product,
+  });
+});
+
 
 //Get Single Product - api/v1/product/:id
 exports.getSingleProduct = catchAsyncError(async (req, res, next) => {
@@ -669,7 +619,6 @@ exports.getSingleProduct = catchAsyncError(async (req, res, next) => {
         data
     })
 })
-
 
 // update home products
 exports.updateHighlights = catchAsyncError(async (req, res, next) => {
@@ -690,7 +639,6 @@ exports.updateHighlights = catchAsyncError(async (req, res, next) => {
         res.status(500).json({ success: false, message: error.message });
     }
 });
-
 
 // get by features product home page
 exports.getHomePageHighlights = catchAsyncError(async (req, res) => {
@@ -726,7 +674,6 @@ exports.deleteProductOne = catchAsyncError(async (req, res, next) => {
         message: "Product Deleted!"
     });
 });
-
 
 //Create Review - api/v1/review
 exports.createReview = catchAsyncError(async (req, res, next) => {

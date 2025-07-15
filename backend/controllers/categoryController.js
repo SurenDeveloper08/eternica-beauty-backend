@@ -153,23 +153,6 @@ exports.addSubcategory = async (req, res, next) => {
   }
 };
 
-// exports.getSubcategory = async (req, res) => {
-//   const { categorySlug } = req.params;
-  
-//   try {
-//     const subcategories = await Category.findOne({slug: categorySlug});
-//     console.log(subcategories);
-    
-//     res.status(201).json({
-//       success: true,
-//       data: subcategories.subcategories
-//     })
-//   } catch (error) {
-//     console.error("Error fetching subcategories:", error);
-//     res.status(500).json({ error: "Failed to fetch subcategories" });
-//   }
-// };
-
 exports.getSubcategory = async (req, res) => {
   const { categorySlug } = req.params;
 

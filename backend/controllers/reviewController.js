@@ -2,6 +2,7 @@ const catchAsyncError = require('../middlewares/catchAsyncError');
 const Review = require('../models/reviewModel');
 const Order = require('../models/orderModel');
 const ErrorHandler = require('../utils/errorHandler');
+
 function formatNames(input) {
     return input
         .split(',')
@@ -148,8 +149,6 @@ exports.updateReviewStatus = catchAsyncError(async (req, res, next) => {
 
     res.status(200).json({ success: true, data: review });
 });
-
-
 
 exports.updateAdminReview = catchAsyncError(async (req, res, next) => {
     try {

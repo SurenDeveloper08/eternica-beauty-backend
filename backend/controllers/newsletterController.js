@@ -18,7 +18,6 @@ exports.subscribeUser = catchAsyncError(async (req, res, next) => {
     }
 });
 
-
 exports.getSubscribers = catchAsyncError(async (req, res, next) => {
     try {
         const data = await Newsletter.find().sort({ subscribedAt: -1 });

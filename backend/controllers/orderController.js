@@ -57,8 +57,6 @@ async function updateStock(slug, quantity, color = null, size = null) {
     throw new Error("Invalid variant combination for stock update");
 }
 
-
-
 exports.createOrder = catchAsyncError(async (req, res, next) => {
     try {
         const {
@@ -269,7 +267,6 @@ exports.updateOrder = catchAsyncError(async (req, res, next) => {
     });
 });
 
-
 //Create New Order - api/v1/order/new
 exports.newOrder = catchAsyncError(async (req, res, next) => {
     const {
@@ -339,15 +336,6 @@ exports.orders = catchAsyncError(async (req, res, next) => {
         orders
     })
 })
-
-// async function updateStock(slug, quantity) {
-//     const product = await Product.findOne({ slug: slug });
-
-//     product.stock = product.stock - quantity;
-//     product.save({ validateBeforeSave: false })
-// }
-
-
 
 //Admin: Delete Order - api/v1/order/:id
 exports.deleteOrder = catchAsyncError(async (req, res, next) => {

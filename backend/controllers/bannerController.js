@@ -34,7 +34,6 @@ exports.bannerUpload = catchAsyncError(async (req, res, next) => {
         data,
     });
 });
-
 exports.getBanners = catchAsyncError(async (req, res, next) => {
     const data = await Banner.find().sort({ sortOrder: 1 });
 

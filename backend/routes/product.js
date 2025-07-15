@@ -5,17 +5,46 @@ const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenti
 const multer = require('multer');
 const path = require('path')
 
-const upload = multer({
-    storage: multer.diskStorage({
-        destination: function (req, file, cb) {
-            cb(null, path.join(__dirname, '..', 'uploads/product'))
-        },
-        filename: function (req, file, cb) {
-            cb(null, file.originalname)
-        }
-    })
-})
+// const upload = multer({
+//     storage: multer.diskStorage({
+//         destination: function (req, file, cb) {
+//             cb(null, path.join(__dirname, '..', 'uploads/product'))
+//         },
+//         filename: function (req, file, cb) {
+//             cb(null, file.originalname)
+//         }
+//     })
+// })
 
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // store files inside /uploads/product
+    cb(null, path.join(__dirname, '..', 'uploads/product'));
+  },
+  filename: function (req, file, cb) {
+    // get extension
+    const ext = path.extname(file.originalname).toLowerCase();
+
+    // get base name without extension
+    const baseName = path.basename(file.originalname, ext);
+
+    // sanitize base name (remove spaces and special characters)
+    const safeName = baseName
+      .trim()
+      .replace(/\s+/g, '_')        // spaces to underscores
+      .replace(/[^a-zA-Z0-9_-]/g, ''); // only keep safe chars
+
+    // add timestamp to avoid collisions
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+
+    // final filename
+    const finalName = `${safeName}_${uniqueSuffix}${ext}`;
+    cb(null, finalName);
+  },
+});
+
+// Create the multer upload instance
+const upload = multer({ storage });
 
 
 router.route('/products').get(getProducts);

@@ -45,7 +45,6 @@ exports.seasonUpload = catchAsyncError(async (req, res, next) => {
     });
 });
 
-
 exports.getSeasons = catchAsyncError(async (req, res, next) => {
 
    const data = await Season.find().find({ isActive: true })
@@ -143,6 +142,7 @@ exports.updateSeasonStatus = catchAsyncError(async (req, res, next) => {
 
     res.status(200).json({ success: true, data:poster });
 });
+
 exports.deleteSeason = catchAsyncError(async (req, res, next) => {
    const seasonId = req.params.id;
 
