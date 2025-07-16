@@ -25,8 +25,7 @@ const categorySchema = new mongoose.Schema({
     default: []
   },
   seo: seoSchema,
-  createdAt: { type: Date, default: Date.now }
-});
+}, { timestamps: true });
 
 const Category = mongoose.model('Category', categorySchema);
 module.exports = Category;
