@@ -5,9 +5,10 @@ const ErrorHandler = require('../utils/errorHandler');
 
 exports.addToCart = catchAsyncError(async (req, res, next) => {
     try {
+        console.log('req.body:', req.body)
         const { slug, color, size } = req.body;
- 
-        const qty = parseInt(req.query?.qty) || 1;
+       
+        const qty = parseInt(req.query?.qty) || 1;  
 
         const user = await User.findById(req.user._id);
         if (!user) return next(new ErrorHandler("User not found", 404));
@@ -98,8 +99,8 @@ exports.addToCart = catchAsyncError(async (req, res, next) => {
 
 exports.getCartQty = catchAsyncError(async (req, res, next) => {
     const { slug } = req.params;
-const { color, size } = req.query;
- 
+    const { color, size } = req.query;
+
     const user = await User.findById(req.user._id);
     if (!user) return next(new ErrorHandler("User not found", 404));
 

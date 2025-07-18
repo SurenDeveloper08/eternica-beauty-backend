@@ -15,7 +15,8 @@ app.use(cors({
 
 
 // Also needed:
-app.use(express.json());
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }));
 app.use(require('cookie-parser')());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
