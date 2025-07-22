@@ -99,8 +99,7 @@ exports.generateSitemap = async (req, res) => {
             (cat.subcategories || []).forEach(sub => {
                 const subDate = sub.updatedAt || catDate;
                 const subUrl = sub.seo?.canonicalUrl?.trim() || `${baseUrl}/products/${cat.slug}/${sub.slug}`;
-                console.log(subUrl);
-                urls.push(`
+               urls.push(`
           <url>
             <loc>${escapeXml(subUrl)}</loc>
             <lastmod>${new Date(subDate).toISOString()}</lastmod>

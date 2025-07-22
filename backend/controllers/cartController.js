@@ -5,7 +5,6 @@ const ErrorHandler = require('../utils/errorHandler');
 
 exports.addToCart = catchAsyncError(async (req, res, next) => {
     try {
-        console.log('req.body:', req.body)
         const { slug, color, size } = req.body;
        
         const qty = parseInt(req.query?.qty) || 1;  
@@ -85,9 +84,7 @@ exports.addToCart = catchAsyncError(async (req, res, next) => {
                 ...(size && { size })
             });
         }
-
         await user.save();
-
         return res.status(200).json({
             success: true,
             message: "Cart added successfully.",

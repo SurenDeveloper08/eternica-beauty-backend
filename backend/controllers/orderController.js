@@ -72,6 +72,7 @@ exports.createOrder = catchAsyncError(async (req, res, next) => {
         const customerEmail = shippingInfo.email;
         const adminEmail1 = process.env.ADMIN_EMAIL1;
         const adminEmail2 = process.env.ADMIN_EMAIL2;
+        const adminEmail3 = process.env.ADMIN_EMAIL3;
         const today = moment().format('DDMMYYYY'); // for orderNumber
         const now = new Date(); // actual date field
         // Step 1: Get today's counter
@@ -142,6 +143,7 @@ exports.createOrder = catchAsyncError(async (req, res, next) => {
             await sendEmail(customerEmail, 'customer', order, 'Ordered');
             await sendEmail(adminEmail1, 'admin', order, 'Ordered');
             await sendEmail(adminEmail2, 'admin', order, 'Ordered');
+            await sendEmail(adminEmail3, 'admin', order, 'Ordered');
 
             // order.items.forEach(async orderItem => {
             //     await updateStock(orderItem.slug, orderItem.quantity)
@@ -235,7 +237,7 @@ exports.updateOrder = catchAsyncError(async (req, res, next) => {
     const customerEmail = shippingInfo.email;
     const adminEmail1 = process.env.ADMIN_EMAIL1;
     const adminEmail2 = process.env.ADMIN_EMAIL2;
-
+    const adminEmail3 = process.env.ADMIN_EMAIL3;
     const updateData = { orderStatus: status };
     if (invoiceFile) {
         const baseUrl =
@@ -255,10 +257,12 @@ exports.updateOrder = catchAsyncError(async (req, res, next) => {
     if (status === 'Ordered') {
         await sendEmail(adminEmail1, 'admin', order, status);
         await sendEmail(adminEmail2, 'admin', order, status);
+        await sendEmail(adminEmail3, 'admin', order, status);
     }
     else if (status === 'Delivered') {
         await sendEmail(adminEmail1, 'admin', order, status, updateData?.invoice);
         await sendEmail(adminEmail2, 'admin', order, status, updateData?.invoice);
+        await sendEmail(adminEmail3, 'admin', order, status, updateData?.invoice);
     }
 
     res.status(200).json({
