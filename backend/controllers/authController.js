@@ -234,7 +234,7 @@ exports.forgotPassword = catchAsyncError(async (req, res, next) => {
     }
 
     const resetToken = user.getResetToken();
-    await user.save({ validateBeforeSave: false })
+    await user.save({ validateBeforeSave: false })  
 
     
     let BASE_URL = process.env.NODE_ENV === "production"

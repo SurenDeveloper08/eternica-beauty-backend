@@ -36,6 +36,8 @@ const seo = require('./routes/seo')
 const review = require('./routes/review')
 const gcc = require('./routes/gccCountry')
 const sitemap = require('./routes/sitemap')
+const blog = require('./routes/blog')
+
 app.use('/api/v1/', products);
 app.use('/api/v1/', category);
 app.use('/api/v1/', auth);
@@ -51,6 +53,7 @@ app.use('/api/v1/', highlight)
 app.use('/api/v1/', seo)
 app.use('/api/v1/', review)
 app.use('/api/v1/', gcc)
+app.use('/api/v1/', blog)
 app.use('/', sitemap);
 // app.use('/api/v1/',payment);
 

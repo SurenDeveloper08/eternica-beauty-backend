@@ -1,20 +1,9 @@
 const express = require('express');
-const { getProductsByCategory, getProductsBySubCategory, searchProducts, getProductsByrelCategory, getProducts, updateHighlights, getHomePageHighlights, newProduct, getSingleProduct, updateProduct, deleteProduct, createReview, getReviews, deleteReview, getAdminProducts } = require('../controllers/productController');
+const { getProductsByCategory, getProductsBySubCategory, getProductsByFilter, searchProducts, getProductsByrelCategory, getProducts, updateHighlights, getHomePageHighlights, newProduct, getSingleProduct, updateProduct, deleteProduct, createReview, getReviews, deleteReview, getAdminProducts } = require('../controllers/productController');
 const router = express.Router();
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate');
 const multer = require('multer');
 const path = require('path')
-
-// const upload = multer({
-//     storage: multer.diskStorage({
-//         destination: function (req, file, cb) {
-//             cb(null, path.join(__dirname, '..', 'uploads/product'))
-//         },
-//         filename: function (req, file, cb) {
-//             cb(null, file.originalname)
-//         }
-//     })
-// })
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -52,7 +41,7 @@ router.route('/product/:slug').get(getSingleProduct);
 router.route('/products/search').get(searchProducts);
 router.route('/admin/products/highlight/:slug').put(updateHighlights);
 router.route('/products/homepage-products').get(getHomePageHighlights);
-
+router.route('/products/filter').get(getProductsByFilter);
 
 
 

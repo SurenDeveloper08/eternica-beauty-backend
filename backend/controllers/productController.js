@@ -122,6 +122,28 @@ exports.getProductsByrelCategory = async (req, res) => {
     }
 };
 
+exports.getProductsByFilter = catchAsyncError(async (req, res, next) => {
+  try {
+    const { filters } = req.body; // array of slugs
+    let query = {};
+
+    if (filters && filters.length > 0) {
+      query = {
+        $or: [
+          { categorySlug: { $in: filters } },
+          { subCategorySlug: { $in: filters } },
+        ],
+      };
+    }
+
+    const products = await Product.find(query);
+    res.json({ products });
+  } catch (error) {
+    console.error("Filter error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+})
+
 //Get Products - /api/v1/products
 exports.getProducts = catchAsyncError(async (req, res, next) => {
 

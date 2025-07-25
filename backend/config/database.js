@@ -14,7 +14,7 @@ const connectDatabase = async () => {
         // Check existing indexes
         const productIndexes = await mongoose.connection.db.collection('products').indexes();
         const hasSlugIndex = productIndexes.find(index => index.name === 'slug_1');
-
+        
         if (!hasSlugIndex) {
             console.log("Creating unique index on products.slug");
             await mongoose.connection.db.collection('products').createIndex({ slug: 1 }, { unique: true });
