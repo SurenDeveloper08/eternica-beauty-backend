@@ -1,11 +1,12 @@
 const catchAsyncError = require('../middlewares/catchAsyncError');
 const ProductHighlight = require('../models/highlightModel');
 const ErrorHandler = require('../utils/errorHandler');
+const {convertProductPrices} = require('../utils/convertProductPrices');
 
 exports.highlightUpload = catchAsyncError(async (req, res, next) => {
     try {
         const { productId, category, sortOrder, isActive } = req.body;
-
+  
         const highlight = new ProductHighlight({ productId, category, sortOrder, isActive });
         await highlight.save();
         res.status(200).send({
@@ -18,6 +19,7 @@ exports.highlightUpload = catchAsyncError(async (req, res, next) => {
 });
 exports.gethighlights = catchAsyncError(async (req, res, next) => {
     try {
+        const currency = req.query.currency || 'AED';
         const filter = {};
 
         if (req.query.category) {
@@ -44,12 +46,15 @@ exports.gethighlights = catchAsyncError(async (req, res, next) => {
                 data: [],
             });
         }
-
+        const converted = await Promise.all(
+            productsOnly.map(p => convertProductPrices(p, currency))
+        );
         res.status(200).json({
             success: true,
             count: highlights.length,
             message: "Highlights fetched successfully",
-            data: productsOnly,
+            currency,
+            data: converted,
         });
 
     } catch (err) {

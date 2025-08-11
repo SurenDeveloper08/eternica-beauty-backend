@@ -67,7 +67,8 @@ exports.createOrder = catchAsyncError(async (req, res, next) => {
             deliveryCharge,
             token,
         } = req.body;
-
+        const currency = req.query.currency?.toUpperCase() || 'AED';
+        const { eligible } = req.body;
         const userId = req.user._id;
         const customerEmail = shippingInfo.email;
         const adminEmail1 = process.env.ADMIN_EMAIL1;
@@ -121,33 +122,31 @@ exports.createOrder = catchAsyncError(async (req, res, next) => {
 
         const order = await Order.create({
             user: userId,
+            eligible,
             deliveryCharge: deliveryAmount,
             orderNumber,
             shippingInfo,
             items,
             amount,
             payment,
+            currency,
             orderStatus: 'Pending',
             createdAt: now
         });
-        const orderedProductIds = items.map(item => item.slug);
-
-        const user = await User.findById(userId);
-
-        await User.findByIdAndUpdate(user._id, {
-            $pull: {
-                cart: { slug: { $in: orderedProductIds } }
-            }
-        });
         try {
-            await sendEmail(customerEmail, 'customer', order, 'Ordered');
-            await sendEmail(adminEmail1, 'admin', order, 'Ordered');
-            await sendEmail(adminEmail2, 'admin', order, 'Ordered');
-            await sendEmail(adminEmail3, 'admin', order, 'Ordered');
+            await sendEmail(customerEmail, 'customer', order, 'Ordered', currency, eligible);
+            await sendEmail(adminEmail1, 'admin', order, 'Ordered', currency, eligible);
+            await sendEmail(adminEmail2, 'admin', order, 'Ordered', currency, eligible);
+            await sendEmail(adminEmail3, 'admin', order, 'Ordered', currency, eligible);
+            const orderedProductIds = items.map(item => item.slug);
 
-            // order.items.forEach(async orderItem => {
-            //     await updateStock(orderItem.slug, orderItem.quantity)
-            // })
+            const user = await User.findById(userId);
+
+            await User.findByIdAndUpdate(user._id, {
+                $pull: {
+                    cart: { slug: { $in: orderedProductIds } }
+                }
+            });
             await Promise.all(
                 order.items.map(item =>
                     updateStock(item.slug, item.quantity, item.color || null, item.size || null)
@@ -251,20 +250,21 @@ exports.updateOrder = catchAsyncError(async (req, res, next) => {
 
     await Order.findByIdAndUpdate(req.params.id, updateData);
 
-    await sendEmail(customerEmail, 'customer', order, status, updateData?.invoice);
-
-
     if (status === 'Ordered') {
-        await sendEmail(adminEmail1, 'admin', order, status);
-        await sendEmail(adminEmail2, 'admin', order, status);
-        await sendEmail(adminEmail3, 'admin', order, status);
+        await sendEmail(customerEmail, 'customer', order, status, order.currency, order.eligible);
+        await sendEmail(adminEmail1, 'admin', order, status, order.currency, order.eligible);
+        await sendEmail(adminEmail2, 'admin', order, status, order.currency, order.eligible);
+        await sendEmail(adminEmail3, 'admin', order, status, order.currency, order.eligible);
+    }
+    else if (status === 'Out for Delivery') {
+        await sendEmail(customerEmail, 'customer', order, status, order.currency, order.eligible);
     }
     else if (status === 'Delivered') {
-        await sendEmail(adminEmail1, 'admin', order, status, updateData?.invoice);
-        await sendEmail(adminEmail2, 'admin', order, status, updateData?.invoice);
-        await sendEmail(adminEmail3, 'admin', order, status, updateData?.invoice);
+        await sendEmail(customerEmail, 'customer', order, status, order.currency, order.eligible, updateData?.invoice);
+        await sendEmail(adminEmail1, 'admin', order, status, order.currency, order.eligible, updateData?.invoice);
+        await sendEmail(adminEmail2, 'admin', order, status, order.currency, order.eligible, updateData?.invoice);
+        await sendEmail(adminEmail3, 'admin', order, status, order.currency, order.eligible, updateData?.invoice);
     }
-
     res.status(200).json({
         success: true,
         message: 'Order status updated and emails sent',

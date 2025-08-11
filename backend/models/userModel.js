@@ -8,7 +8,9 @@ const cartItemSchema = new mongoose.Schema({
     slug: { type: String, required: true },
     quantity: { type: Number, default: 1 },
     color: { type: String }, // optional color
-    size: { type: String }   // optional size
+    variantId: { type: String },
+    size: { type: String },   // optional size
+    sizeId: { type: String }
 });
 
 const deliveryAddressSchema = new mongoose.Schema({
@@ -17,8 +19,9 @@ const deliveryAddressSchema = new mongoose.Schema({
     email: { type: String },
     address: { type: String, required: true },
     country: { type: String, required: true },
-    city: { type: String, required: true },
-    zipCode: { type: String, required: true },
+    countryCode: { type: String, required: true },
+    city: { type: String, required: false },
+    zipCode: { type: String },
     isDefault: { type: Boolean, default: false }
 });
 

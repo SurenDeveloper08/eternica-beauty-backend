@@ -15,6 +15,7 @@ const seoSchema = new mongoose.Schema({
     metaKeywords: { type: String },
     canonicalUrl: { type: String }
 });
+
 const productSchema = new mongoose.Schema({
     productName: { type: String, required: true },
     slug: { type: String, unique: true, index: true },
@@ -35,12 +36,14 @@ const productSchema = new mongoose.Schema({
             color: String,
             colorCode: String,     // optional hex or image
             images: [String],      // images for this color variant
+            longImages: [String],
             sizes: [
                 {
-                    name: String,       
+                    name: String,
                     price: Number,
                     stock: Number,
-                    images: [String]    // optional size-specific images
+                    images: [String],    // optional size-specific images
+                    longImages: [String],
                 }
             ],
             price: Number,         // optional: price for color-only variant
@@ -53,6 +56,10 @@ const productSchema = new mongoose.Schema({
             required: true
         }
     }],
+    longImages: [{ type: String }],
+    sellGlobally: { type: Boolean, default: true },
+    restrictedCountries: [String], // ['SA', 'IR']      
+    allowedCountries: [String],    // used if sellGlobally is false
     isActive: { type: Boolean, default: true },
     seo: seoSchema,
 }, { timestamps: true });

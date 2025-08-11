@@ -51,4 +51,4 @@ router.route('/admin/blog/:slug').put(isAuthenticatedUser,authorizeRoles('admin'
 router.route('/admin/blog/:slug').get(isAuthenticatedUser,authorizeRoles('admin'), getOneBlog);
 router.route('/admin/blogs').get(isAuthenticatedUser,authorizeRoles('admin'), getAllBlogs);
 router.route('/admin/blog/:slug').delete(isAuthenticatedUser,authorizeRoles('admin'), deleteBlog);
-module.exports = router;
+module.exports = router;    

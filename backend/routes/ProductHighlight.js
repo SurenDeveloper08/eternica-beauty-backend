@@ -17,7 +17,7 @@ const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenti
 
 
 //Web routes
-router.route('/highlights').get(gethighlights);
+router.route('/highlights').get(gethighlights); //used
 
 //Admin routes
 router.route('/admin/highlight/upload').post(isAuthenticatedUser,authorizeRoles('admin'), highlightUpload);

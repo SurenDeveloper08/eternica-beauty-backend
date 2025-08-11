@@ -6,7 +6,7 @@ const injectData = (template, data) => {
     return template.replace(/{{(.*?)}}/g, (_, key) => data[key.trim()] || '');
 };
 
-const generateItemsTablenew = (items) => {
+const generateItemsTablenew = (items, currency) => {
     return items.map((item) => ` <tr>
                                                                                                                                                     <td class="m_2965410129824235511pc-w620-halign-left m_2965410129824235511pc-w620-valign-middle m_2965410129824235511pc-w620-padding-20-0-20-20 m_2965410129824235511pc-w620-width-100pc"
                                                                                                                                                         align="left"
@@ -70,7 +70,7 @@ const generateItemsTablenew = (items) => {
                                                                                                                                                             </tbody>
                                                                                                                                                         </table>
                                                                                                                                                          ${item?.color ?
-                                                                                                                                                       `<table
+            `<table
                                                                                                                                                             width="100%"
                                                                                                                                                             border="0"
                                                                                                                                                             cellpadding="0"
@@ -108,9 +108,9 @@ const generateItemsTablenew = (items) => {
                                                                                                                                                                 </tr>
                                                                                                                                                             </tbody>
                                                                                                                                                         </table>`: ''
-                                                                                                                                                         }
+        }
                                                                                                                                                           ${item?.size ?
-                                                                                                                                                       `<table
+            `<table
                                                                                                                                                             width="100%"
                                                                                                                                                             border="0"
                                                                                                                                                             cellpadding="0"
@@ -148,8 +148,8 @@ const generateItemsTablenew = (items) => {
                                                                                                                                                                     </td>
                                                                                                                                                                 </tr>
                                                                                                                                                             </tbody>
-                                                                                                                                                        </table>`: '' 
-                                                                                                                                                          }
+                                                                                                                                                        </table>`: ''
+        }
                                                                                                                                                         <table
                                                                                                                                                             border="0"
                                                                                                                                                             cellpadding="0"
@@ -172,6 +172,45 @@ const generateItemsTablenew = (items) => {
                                                                                                                                                                 </tr>
                                                                                                                                                             </tbody>
                                                                                                                                                         </table>
+                                                                                                                                                        ${item?.eligible === false ?
+            `<table
+    width="100%"
+    border="0"
+    cellpadding="0"
+    cellspacing="0"
+    role="presentation">
+    <tbody>
+        <tr>
+            <td class="m_2965410129824235511pc-w620-align-left"
+                valign="top"
+                style="padding:0px 0px 2px 0px;height:auto">
+                <table
+                    border="0"
+                    cellpadding="0"
+                    cellspacing="0"
+                    role="presentation"
+                    class="m_2965410129824235511pc-w620-align-left"
+                    width="100%">
+                    <tbody>
+                        <tr>
+                            <td valign="top"
+                                class="m_2965410129824235511pc-w620-align-left">
+                                <div class="m_2965410129824235511pc-w620-align-left m_2965410129824235511pc-w620-fontSize-14px m_2965410129824235511pc-w620-lineHeight-24"
+                                    style="line-height:24px;letter-spacing:-0px;font-family:'Nunito Sans',Arial,Helvetica,sans-serif;font-size:14px;font-weight:600;color:#121212cc">
+                                    <div>
+                                      <span style="color: red;">Undeliverable</span>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </tbody>
+</table>` : ''
+        }
+
                                                                                                                                                     </td>
                                                                                                                                                     <td class="m_2965410129824235511pc-w620-halign-right m_2965410129824235511pc-w620-valign-bottom m_2965410129824235511pc-w620-padding-20-20-20-0 m_2965410129824235511pc-w620-width-100pc"
                                                                                                                                                         align="right"
@@ -208,7 +247,7 @@ const generateItemsTablenew = (items) => {
                                                                                                                                                                                                     style="font-family:'Nunito Sans',Arial,Helvetica,sans-serif">
                                                                                                                                                                                                     <span
                                                                                                                                                                                                         style="font-family:'Nunito Sans',Arial,Helvetica,sans-serif;font-size:14px;line-height:22px"
-                                                                                                                                                                                                        class="m_2965410129824235511pc-w620-font-size-14px m_2965410129824235511pc-w620-line-height-22px">AED
+                                                                                                                                                                                                        class="m_2965410129824235511pc-w620-font-size-14px m_2965410129824235511pc-w620-line-height-22px">${currency}
                                                                                                                                                                                                         ${item.subtotal}</span>
                                                                                                                                                                                                 </div>
                                                                                                                                                                                             </div>
@@ -304,7 +343,7 @@ const generateItemsTable = (items) => {
                         <tr>
                          <td valign="top" align="right">
                           <div class="pc-font-alt pc-w620-fontSize-16 pc-w620-lineHeight-20" style="line-height: 140%; letter-spacing: -0.03em; font-family: 'Poppins', Arial, Helvetica, sans-serif; font-size: 16px; font-weight: normal; color: #001942; text-align: right; text-align-last: right;">
-                           <div><span style="color: #001942;">AED ${item.subtotal}</span>
+                           <div><span style="color: #001942;">${currency} ${item.subtotal}</span>
                            </div>
                           </div>
                          </td>
@@ -660,13 +699,31 @@ const generateInvoice = (invoice) => {
         </tr>
 `);
 };
-const sendEmail = async (to, type, data, status, invoice) => {
 
+const generateMsg = () => {
+   
+    return `
+      <tr>
+        <td colspan="2" align="left"
+            style="padding: 0 20px 10px 20px;">
+            <div
+                style="font-size: 13px; line-height: 18px; color: #e00000; font-family: 'Nunito Sans', Arial, Helvetica, sans-serif;">
+                <strong>Note:</strong> Prices of
+                undeliverable products are <span
+                    style="color:#e00000; font-weight: 600;">not
+                    included</span> in the total
+                amount.
+            </div>
+        </td>
+      </tr>`;
+};
+
+
+const sendEmail = async (to, type, data, status, currency, eligible, invoice) => {
     let adminSubject = '';
     let adminMessage = '';
     let customerSubject = '';
     let customerMessage = '';
-
 
     const getTemplatePath = (userType) => {
         const fileName = userType === 'admin' ? 'newsLetterAdmin.html' : 'newsLetterCustomer.html';
@@ -675,7 +732,6 @@ const sendEmail = async (to, type, data, status, invoice) => {
     function injectData(template, data) {
         return template.replace(/{{(.*?)}}/g, (_, key) => data[key.trim()] || '');
     }
-
 
     switch (status) {
         case 'Ordered':
@@ -733,7 +789,6 @@ const sendEmail = async (to, type, data, status, invoice) => {
         return;
     }
     const rawHtml = fs.readFileSync(getTemplatePath(type), 'utf-8');
-
     const html = injectData(rawHtml, {
         subject: type === 'admin' ? adminSubject : customerSubject,
         message: type === 'admin' ? adminMessage : customerMessage,
@@ -744,10 +799,12 @@ const sendEmail = async (to, type, data, status, invoice) => {
         country: data?.shippingInfo?.country,
         phone: data?.shippingInfo?.phone,
         email: data?.shippingInfo?.email,
-        deliveryCharge: data?.deliveryCharge ? `AED ${data.deliveryCharge}` : 'Free',
+        deliveryCharge: data?.deliveryCharge ? `${currency} ${data.deliveryCharge}` : 'Free',
         total: data.amount,
-        itemsTable: generateItemsTablenew(data.items),
+        currency: currency,
+        itemsTable: generateItemsTablenew(data.items, currency),
         invoiceButton: status === 'Delivered' && type === 'customer' ? generateInvoice(invoice) : '',
+        undeliverable: !eligible ? generateMsg() : ''
     });
     const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,

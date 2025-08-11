@@ -23,6 +23,10 @@ const itemsSchema = new mongoose.Schema({
     color: {
         type: String
     },
+    eligible: {
+        type: Boolean,
+        default: true,
+    },
     size: {
         type: String
     },
@@ -73,6 +77,14 @@ const orderSchema = mongoose.Schema({
     shippingInfo: deliveryAddressSchema,
     items: [itemsSchema],
     amount: Number,
+    currency: {
+        type: String,
+        required: true
+    },
+    eligible: {
+        type: Boolean,
+        default: true,
+    },
     payment: {
         type: PaymentSchema,
         required: true,

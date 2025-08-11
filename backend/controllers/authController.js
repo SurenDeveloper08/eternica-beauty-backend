@@ -82,6 +82,7 @@ exports.addAddress = catchAsyncError(async (req, res, next) => {
             email,
             address,
             country,
+            countryCode,
             city,
             zipCode,
             isDefault
@@ -89,7 +90,7 @@ exports.addAddress = catchAsyncError(async (req, res, next) => {
 
 
         // Basic validation
-        if (!name || !email || !phone || !address || !country || !city || !zipCode) {
+        if (!name || !email || !phone || !address || !country || !countryCode || !city || !zipCode) {
 
             return res.status(400).json({
                 success: false,
@@ -111,6 +112,7 @@ exports.addAddress = catchAsyncError(async (req, res, next) => {
             email,
             address,
             country,
+            countryCode,
             city,
             zipCode,
             isDefault: !!isDefault
@@ -174,13 +176,14 @@ exports.updateAddress = catchAsyncError(async (req, res, next) => {
             email,
             address,
             country,
+            countryCode,
             city,
             zipCode,
             isDefault
         } = req.body;
 
         // Basic validation
-        if (!name || !email || !phone || !address || !country || !city || !zipCode) {
+        if (!name || !email || !phone || !address || !country || !countryCode || !city || !zipCode) {
             return res.status(400).json({
                 success: false,
                 message: 'All required fields must be filled.'
@@ -201,17 +204,28 @@ exports.updateAddress = catchAsyncError(async (req, res, next) => {
         if (isDefault) {
             user.addresses.forEach(addr => (addr.isDefault = false));
         }
-        const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
-        // Update address fields
-        addressToUpdate.name = capitalizedName;
-        addressToUpdate.phone = phone;
-        addressToUpdate.email = email;
-        addressToUpdate.address = address;
-        addressToUpdate.country = country;
-        addressToUpdate.city = city;
-        addressToUpdate.zipCode = zipCode;
-        addressToUpdate.isDefault = !!isDefault;
-
+         const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
+        // // Update address fields
+        // addressToUpdate.name = capitalizedName;
+        // addressToUpdate.phone = phone;
+        // addressToUpdate.email = email;
+        // addressToUpdate.address = address;
+        // addressToUpdate.country = country;
+        // addressToUpdate.countryCode = countryCode;
+        // addressToUpdate.city = city;
+        // addressToUpdate.zipCode = zipCode;
+        // addressToUpdate.isDefault = !!isDefault;
+        Object.assign(addressToUpdate, {
+            name: capitalizedName,
+            phone,
+            email,
+            address,
+            country,
+            countryCode,
+            city,
+            zipCode,
+            isDefault: !!isDefault
+        });
         await user.save();
 
         res.status(200).json({
@@ -234,9 +248,9 @@ exports.forgotPassword = catchAsyncError(async (req, res, next) => {
     }
 
     const resetToken = user.getResetToken();
-    await user.save({ validateBeforeSave: false })  
+    await user.save({ validateBeforeSave: false })
 
-    
+
     let BASE_URL = process.env.NODE_ENV === "production"
         ? process.env.BACKEND_URL
         : `${req.protocol}://${req.get("host")}`;
@@ -328,7 +342,7 @@ exports.updateProfile = catchAsyncError(async (req, res, next) => {
     }
 
     let avatar;
-    
+
     let BASE_URL = process.env.NODE_ENV === "production"
         ? process.env.BACKEND_URL
         : `${req.protocol}://${req.get("host")}`;

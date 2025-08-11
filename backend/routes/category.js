@@ -33,7 +33,7 @@ const {
 } = require('../controllers/categoryController');
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate');
 
-router.route('/categories').get(getActiveCategories);
+router.route('/categories').get(getActiveCategories); //used
 
 router.route('/admin/categories/all').get(isAuthenticatedUser, authorizeRoles('admin'), getAllCategories);
 router.route('/admin/category/:id').get(isAuthenticatedUser, authorizeRoles('admin'), getSingleCategory);

@@ -18,7 +18,7 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }));
 app.use(require('cookie-parser')());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
-
+app.set('trust proxy', true);
 const products = require('./routes/product')
 const auth = require('./routes/auth')
 const order = require('./routes/order')
@@ -37,7 +37,7 @@ const review = require('./routes/review')
 const gcc = require('./routes/gccCountry')
 const sitemap = require('./routes/sitemap')
 const blog = require('./routes/blog')
-
+const ip = require('./routes/ip')
 app.use('/api/v1/', products);
 app.use('/api/v1/', category);
 app.use('/api/v1/', auth);
@@ -54,6 +54,7 @@ app.use('/api/v1/', seo)
 app.use('/api/v1/', review)
 app.use('/api/v1/', gcc)
 app.use('/api/v1/', blog)
+app.use('/api/v1/', ip);
 app.use('/', sitemap);
 // app.use('/api/v1/',payment);
 
