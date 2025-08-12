@@ -19,7 +19,7 @@ const deliveryAddressSchema = new mongoose.Schema({
     email: { type: String },
     address: { type: String, required: true },
     country: { type: String, required: true },
-    countryCode: { type: String, required: true },
+    countryCode: { type: String},
     city: { type: String, required: false },
     zipCode: { type: String },
     isDefault: { type: Boolean, default: false }
