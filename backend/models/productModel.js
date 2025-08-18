@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const slugify = require('slugify');
 
-
 const specificationSchema = new mongoose.Schema({
     key: String,
     value: String,

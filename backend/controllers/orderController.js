@@ -133,41 +133,44 @@ exports.createOrder = catchAsyncError(async (req, res, next) => {
             orderStatus: 'Pending',
             createdAt: now
         });
-        try {
-            await sendEmail(customerEmail, 'customer', order, 'Ordered', currency, eligible);
-            await sendEmail(adminEmail1, 'admin', order, 'Ordered', currency, eligible);
-            await sendEmail(adminEmail2, 'admin', order, 'Ordered', currency, eligible);
-            await sendEmail(adminEmail3, 'admin', order, 'Ordered', currency, eligible);
-            const orderedProductIds = items.map(item => item.slug);
 
-            const user = await User.findById(userId);
-
-            await User.findByIdAndUpdate(user._id, {
-                $pull: {
-                    cart: { slug: { $in: orderedProductIds } }
-                }
-            });
-            await Promise.all(
-                order.items.map(item =>
-                    updateStock(item.slug, item.quantity, item.color || null, item.size || null)
-                )
-            );
-
-        } catch (emailErr) {
-            console.error('Email send error:', emailErr.message);
-        }
-        const io = req.app.get('io');
-        io.emit('newOrder', {
-            orderId: order._id,
-            orderNumber: order.orderNumber,
-            customer: order.shippingInfo?.name || "Unknown",
-            createdAt: order.createdAt,
-        });
         res.status(201).json({
             success: true,
             message: 'Order created successfully.',
             order: order
         });
+        (async () => {
+            try {
+                await sendEmail(customerEmail, 'customer', order, 'Ordered', currency, eligible);
+                await sendEmail(adminEmail1, 'admin', order, 'Ordered', currency, eligible);
+                await sendEmail(adminEmail2, 'admin', order, 'Ordered', currency, eligible);
+                await sendEmail(adminEmail3, 'admin', order, 'Ordered', currency, eligible);
+                const orderedProductIds = items.map(item => item.slug);
+
+                const user = await User.findById(userId);
+
+                await User.findByIdAndUpdate(user._id, {
+                    $pull: {
+                        cart: { slug: { $in: orderedProductIds } }
+                    }
+                });
+                await Promise.all(
+                    order.items.map(item =>
+                        updateStock(item.slug, item.quantity, item.color || null, item.size || null)
+                    )
+                );
+
+            } catch (emailErr) {
+                console.error('Email send error:', emailErr.message);
+            }
+            const io = req.app.get('io');
+            io.emit('newOrder', {
+                orderId: order._id,
+                orderNumber: order.orderNumber,
+                customer: order.shippingInfo?.name || "Unknown",
+                createdAt: order.createdAt,
+            });
+        })();
 
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

@@ -8,7 +8,7 @@ const cartItemSchema = new mongoose.Schema({
     slug: { type: String, required: true },
     quantity: { type: Number, default: 1 },
     color: { type: String }, // optional color
-    variantId: { type: String },
+    variantId: { type: String },    
     size: { type: String },   // optional size
     sizeId: { type: String }
 });

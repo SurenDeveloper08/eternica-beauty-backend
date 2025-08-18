@@ -5,13 +5,21 @@ const ErrorHandler = require('../utils/errorHandler');
 const { convertCartItemPrices } = require('../utils/convertProductPrices');
 const { convertPrice } = require('../utils/currency')
 
+
 exports.addToCart = catchAsyncError(async (req, res, next) => {
     try {
         const { slug, variantId, sizeId, color, size } = req.body;
-        
-        const qty = parseInt(req.query?.qty) || 1;
+        const qty = parseInt(req.query?.qty ?? 1, 10);
+        const token = req.user?._id;
+        if (!token) {
+            // Guest cart in localStorage handled on frontend
+            return res.status(200).json({
+                success: true,
+                message: 'Guest cart updated locally.',
+            });
+        }
 
-        const user = await User.findById(req.user._id);
+        const user = await User.findById(token);
         if (!user) return next(new ErrorHandler("User not found", 404));
 
         const product = await Product.findOne({ slug });
@@ -21,18 +29,13 @@ exports.addToCart = catchAsyncError(async (req, res, next) => {
         let selectedVariant = null;
         let selectedSize = null;
 
-        // Handle variant & size stock logic
         if (variantId) {
             selectedVariant = product.variants.id(variantId);
-            if (!selectedVariant) {
-                return res.status(400).json({ success: false, message: "Variant not found" });
-            }
+            if (!selectedVariant) return res.status(400).json({ success: false, message: "Variant not found" });
 
             if (sizeId) {
                 selectedSize = selectedVariant.sizes?.id(sizeId);
-                if (!selectedSize) {
-                    return res.status(400).json({ success: false, message: "Size not found" });
-                }
+                if (!selectedSize) return res.status(400).json({ success: false, message: "Size not found" });
                 availableStock = selectedSize.stock ?? 0;
             } else {
                 availableStock = selectedVariant.stock ?? 0;
@@ -46,7 +49,6 @@ exports.addToCart = catchAsyncError(async (req, res, next) => {
             });
         }
 
-        // Try to find matching cart item
         const existingItem = user.cart.find(item =>
             item.slug === slug &&
             (variantId ? item.variantId?.toString() === variantId : !item.variantId) &&
@@ -54,39 +56,29 @@ exports.addToCart = catchAsyncError(async (req, res, next) => {
         );
 
         if (existingItem) {
-            const newQty = existingItem.quantity + qty;
 
-            if (newQty > 10) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Maximum quantity per item is 10.",
-                });
-            }
-
-            if (newQty > availableStock) {
-                return res.status(400).json({
+            if (qty === 0) {
+                // 🔹 Remove item completely if qty = 0
+                user.cart = user.cart.filter(item =>
+                    !(
+                        item.slug === slug &&
+                        (variantId ? item.variantId?.toString() === variantId : !item.variantId) &&
+                        (sizeId ? item.sizeId?.toString() === sizeId : !item.sizeId)
+                    )
+                );
+            } else {
+                // Normal update
+                const newQty = qty;
+                if (newQty > 10) return res.status(400).json({ success: false, message: "Max 10 quantity per item." });
+                if (newQty > availableStock) return res.status(400).json({
                     success: false,
                     message: `Only ${availableStock} item(s) available. You already added ${existingItem.quantity}.`,
                 });
+                existingItem.quantity = newQty;
             }
-
-            existingItem.quantity = newQty;
         } else {
-            if (qty > 10) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Maximum quantity per item is 10.",
-                });
-            }
-
-            user.cart.push({
-                slug,
-                quantity: qty,
-                ...(variantId && { variantId }),
-                ...(sizeId && { sizeId }),
-                ...(color && { color }),
-                ...(size && { size }),
-            });
+            if (qty > 10) return res.status(400).json({ success: false, message: "Maximum quantity per item is 10." });
+            user.cart.push({ slug, quantity: qty, ...(variantId && { variantId }), ...(sizeId && { sizeId }), ...(color && { color }), ...(size && { size }) });
         }
 
         await user.save();
@@ -94,6 +86,7 @@ exports.addToCart = catchAsyncError(async (req, res, next) => {
         return res.status(200).json({
             success: true,
             message: existingItem ? "Cart quantity updated." : "Item added to cart.",
+            cart: user.cart, // send updated cart for frontend convenience
         });
     } catch (err) {
         next(err);
@@ -124,10 +117,24 @@ exports.getCartQty = catchAsyncError(async (req, res, next) => {
 
 exports.getCart = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user._id);
         const currency = req.query.currency?.toUpperCase() || 'AED';
+        let cartItemsData = [];
+        let subtotalAED = 0;
 
-        if (!user || !user.cart?.length) {
+        // Check if user is logged in
+        const userId = req.user?._id;
+        let cartItems = [];
+
+        if (userId) {
+            // Logged-in user
+            const user = await User.findById(userId);
+            if (user?.cart?.length) cartItems = user.cart;
+        } else if (req.body?.items?.length) {
+            // Guest cart sent from frontend
+            cartItems = req.body.items;
+        }
+
+        if (!cartItems.length) {
             return res.status(200).json({
                 success: true,
                 count: 0,
@@ -140,9 +147,8 @@ exports.getCart = async (req, res, next) => {
             });
         }
 
-        let subtotalAED = 0;
-
-        const cartItems = await Promise.all(user.cart.map(async (item) => {
+        // Process each cart item
+        cartItemsData = await Promise.all(cartItems.map(async (item) => {
             const product = await Product.findOne({ slug: item.slug }).select(
                 'productName image images price stock variants slug'
             );
@@ -153,7 +159,6 @@ exports.getCart = async (req, res, next) => {
             let priceAED = product.price;
             let stock = product.stock;
             let image = product.image;
-            let inStock = true;
 
             if (item.color || item.size) {
                 variant = product.variants.find(v => {
@@ -170,17 +175,19 @@ exports.getCart = async (req, res, next) => {
                 image = sizeObj?.images?.[0] || variant.images?.[0] || product.image;
             }
 
-            inStock = typeof stock === 'number' ? stock > 0 : true;
-            const itemSubtotalAED = priceAED * item.quantity;
+            const inStock = typeof stock === 'number' ? stock > 0 : true;
+            const adjustedQty = inStock ? Math.min(item.quantity, stock) : 0;
+
+            const itemSubtotalAED = priceAED * adjustedQty;
             if (inStock) subtotalAED += itemSubtotalAED;
 
-            // Convert price for this item
             const priceConverted = await convertPrice(priceAED, currency);
-            const subtotalConverted = priceConverted * item.quantity;
+            const subtotalConverted = priceConverted * adjustedQty;
 
             return {
                 slug: item.slug,
-                quantity: item.quantity,
+                quantity: adjustedQty,
+                overStock: item.quantity > stock,
                 color: item.color || null,
                 size: item.size || null,
                 variantId: variant?._id || null,
@@ -201,11 +208,13 @@ exports.getCart = async (req, res, next) => {
             };
         }));
 
-        const filteredCart = cartItems.filter(Boolean);
-        // Calculate subtotalConverted
-        const subtotalConverted = filteredCart.reduce((sum, item) => sum + item.subtotalConverted, 0);
-        // Determine delivery fee (in AED) based on AED subtotal
-        const deliveryFeeAED = subtotalConverted < 300 ? 30 : 0;
+        const filteredCart = cartItemsData.filter(Boolean);
+
+        const subtotalConverted = filteredCart
+            .filter(item => item.inStock)
+            .reduce((sum, item) => sum + item.subtotalConverted, 0);
+
+        const deliveryFeeAED = subtotalConverted < 300 ? 25 : 0;
         const deliveryFee = await convertPrice(deliveryFeeAED, currency);
 
         const totalPrice = subtotalConverted + deliveryFee;
@@ -226,12 +235,72 @@ exports.getCart = async (req, res, next) => {
     }
 };
 
+exports.mergeGuestCart = catchAsyncError(async (req, res, next) => {
+    
+    const guestCart = req.body.cart; // Array of guest cart items
+    const userId = req.user?._id;
+
+    if (!userId) return next(new ErrorHandler("User not authenticated", 401));
+    if (!Array.isArray(guestCart) || guestCart.length === 0) {
+        return res.status(200).json({ success: true, message: "No guest cart to merge." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return next(new ErrorHandler("User not found", 404));
+
+    for (const item of guestCart) {
+        const { slug, variantId = "", sizeId = "", color = "", size = "", quantity = 0 } = item;
+
+        if (!slug || quantity <= 0) continue;
+
+        const product = await Product.findOne({ slug });
+        if (!product) continue;
+
+        // Determine available stock
+        let availableStock = product.stock;
+        let selectedVariant = null;
+        let selectedSize = null;
+
+        if (variantId) {
+            selectedVariant = product.variants.id(variantId);
+            if (!selectedVariant) continue;
+            availableStock = selectedVariant.stock ?? 0;
+
+            if (sizeId) {
+                selectedSize = selectedVariant.sizes?.id(sizeId);
+                if (!selectedSize) continue;
+                availableStock = selectedSize.stock ?? 0;
+            }
+        }
+
+        if (availableStock <= 0) continue;
+
+        // Find existing item in user cart
+        const existingItem = user.cart.find(cartItem =>
+            cartItem.slug === slug &&
+            (variantId ? cartItem.variantId === variantId : !cartItem.variantId) &&
+            (sizeId ? cartItem.sizeId === sizeId : !cartItem.sizeId)
+        );
+
+        if (existingItem) {
+            const newQty = Math.min(existingItem.quantity + quantity, availableStock, 10); // max 10 per item
+            existingItem.quantity = newQty;
+        } else {
+            const newQty = Math.min(quantity, availableStock, 10);
+            user.cart.push({ slug, variantId, sizeId, color, size, quantity: newQty });
+        }
+    }
+
+    await user.save();
+
+    return res.status(200).json({ success: true, message: "Guest cart merged.", cart: user.cart });
+});
 
 exports.validateCart = async (req, res, next) => {
     try {
         const user = await User.findById(req.user._id);
         const currency = req.query.currency?.toUpperCase() || 'AED';
-        const country = req.query.country?.toUpperCase() || 'AE';
+        const country = req.query.country?.toUpperCase(); // may be empty
 
         if (!user || !user.cart?.length) {
             return res.status(200).json({
@@ -279,18 +348,31 @@ exports.validateCart = async (req, res, next) => {
             const inStock = typeof stock === 'number' ? stock > 0 : true;
             if (!inStock) return null;
 
-            const eligible = isProductEligible(product, country);
-            const subtotal = price * item.quantity;
+            // Clamp quantity to stock
+            const adjustedQty = Math.min(item.quantity, stock);
+
+            // Determine eligibility
+            let eligible = false;
+            if (!country) {
+                // If country is empty, all products eligible
+                eligible = true;
+            } else {
+                // Normal eligibility check
+                eligible = isProductEligible(product, country);
+            }
+
+            const subtotal = price * adjustedQty;
             if (eligible) rawTotalPrice += subtotal;
 
             // Convert price and subtotal
             const priceConverted = await convertPrice(price, currency);
-            const subtotalConverted = priceConverted * item.quantity;
+            const subtotalConverted = priceConverted * adjustedQty;
             if (eligible) eligibleSubtotalConverted += subtotalConverted;
 
             return {
                 slug: item.slug,
-                quantity: item.quantity,
+                quantity: adjustedQty,
+                overStock: item.quantity > stock,
                 color: item.color || null,
                 size: item.size || null,
                 variantId: variant?._id || null,
@@ -316,7 +398,7 @@ exports.validateCart = async (req, res, next) => {
         const nonEligibleItems = filtered.filter(i => !i.eligible);
 
         // Delivery Fee based on AED subtotal
-        const deliveryFeeAED = eligibleSubtotalConverted < 300 ? 30 : 0;
+        const deliveryFeeAED = eligibleSubtotalConverted < 300 ? 25 : 0;
         const deliveryFee = await convertPrice(deliveryFeeAED, currency);
         const totalPrice = eligibleSubtotalConverted + deliveryFee;
 
@@ -335,7 +417,6 @@ exports.validateCart = async (req, res, next) => {
         next(err);
     }
 };
-
 
 function isProductEligible(product, countryCode) {
     if (product.sellGlobally) {

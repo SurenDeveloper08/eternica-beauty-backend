@@ -205,17 +205,7 @@ exports.updateAddress = catchAsyncError(async (req, res, next) => {
             user.addresses.forEach(addr => (addr.isDefault = false));
         }
          const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
-        // // Update address fields
-        // addressToUpdate.name = capitalizedName;
-        // addressToUpdate.phone = phone;
-        // addressToUpdate.email = email;
-        // addressToUpdate.address = address;
-        // addressToUpdate.country = country;
-        // addressToUpdate.countryCode = countryCode;
-        // addressToUpdate.city = city;
-        // addressToUpdate.zipCode = zipCode;
-        // addressToUpdate.isDefault = !!isDefault;
-        Object.assign(addressToUpdate, {
+      Object.assign(addressToUpdate, {
             name: capitalizedName,
             phone,
             email,
