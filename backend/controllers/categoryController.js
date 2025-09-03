@@ -32,10 +32,10 @@ exports.createCategory = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  
-    let BASE_URL = process.env.NODE_ENV === "production"
-        ? process.env.BACKEND_URL
-        : `${req.protocol}://${req.get("host")}`;
+
+  let BASE_URL = process.env.NODE_ENV === "production"
+    ? process.env.BACKEND_URL
+    : `${req.protocol}://${req.get("host")}`;
 
   let image = "";
   if (req.file) {
@@ -59,6 +59,22 @@ exports.createCategory = catchAsyncError(async (req, res, next) => {
 
   res.status(201).json({ success: true, category });
 });
+
+exports.getActiveSubByCat = async (req, res) => {
+
+  try {
+    
+    const category = await Category.findOne({ slug: req.query.slug, isActive: true });
+    if (!category) return res.status(404).json({ message: "Category not found" });
+ 
+    res.json({
+      subcategories: category.subcategories.filter(sub => sub.isActive),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+}
 exports.getActiveCategories = async (req, res) => {
   try {
     // Find active categories sorted by sortOrder (assume you have sortOrder field in category)
@@ -110,33 +126,33 @@ exports.addSubcategory = async (req, res, next) => {
     if (!category) {
       return res.status(404).json({ error: "Category not found" });
     }
-    
+
     let BASE_URL = process.env.NODE_ENV === "production"
-        ? process.env.BACKEND_URL
-        : `${req.protocol}://${req.get("host")}`;
+      ? process.env.BACKEND_URL
+      : `${req.protocol}://${req.get("host")}`;
 
-   
-   subcategories.forEach(sub => {
-  if (!sub.name) {
-    throw new Error("Each subcategory must have a name");
-  }
 
-  // Use uploaded image if available, else fallback to sub.image (only if it's a string)
-  const subImage =
-    req.file
-      ? `${BASE_URL}/uploads/category/${req.file.filename}`
-      : typeof sub.image === "string"
-        ? sub.image
-        : "";
+    subcategories.forEach(sub => {
+      if (!sub.name) {
+        throw new Error("Each subcategory must have a name");
+      }
 
-  category.subcategories.push({
-    name: sub.name,
-    image: subImage,
-    slug: slugify(sub.name, { lower: true, strict: true }),
-    sortOrder: sub.sortOrder || 0,
-    seo: sub.seo || {}
-  });
-});
+      // Use uploaded image if available, else fallback to sub.image (only if it's a string)
+      const subImage =
+        req.file
+          ? `${BASE_URL}/uploads/category/${req.file.filename}`
+          : typeof sub.image === "string"
+            ? sub.image
+            : "";
+
+      category.subcategories.push({
+        name: sub.name,
+        image: subImage,
+        slug: slugify(sub.name, { lower: true, strict: true }),
+        sortOrder: sub.sortOrder || 0,
+        seo: sub.seo || {}
+      });
+    });
 
 
     await category.save();
@@ -175,7 +191,7 @@ exports.getSubcategory = async (req, res) => {
         message: 'Category not found',
       });
     }
-   
+
     // 4. Return subcategories
     res.status(200).json({
       success: true,
@@ -261,10 +277,10 @@ exports.updateCategory = catchAsyncError(async (req, res, next) => {
   const { name, sortOrder: categorySortOrder } = req.body;
 
   const { id } = req.params;
-  
-    let BASE_URL = process.env.NODE_ENV === "production"
-        ? process.env.BACKEND_URL
-        : `${req.protocol}://${req.get("host")}`;
+
+  let BASE_URL = process.env.NODE_ENV === "production"
+    ? process.env.BACKEND_URL
+    : `${req.protocol}://${req.get("host")}`;
 
   let image;
   if (req.file) {
@@ -317,10 +333,10 @@ exports.updateSubcategory = async (req, res) => {
   try {
     const { categoryId, subCategoryId } = req.params;
     const { name, sortOrder } = req.body;
-   
+
     let BASE_URL = process.env.NODE_ENV === "production"
-        ? process.env.BACKEND_URL
-        : `${req.protocol}://${req.get("host")}`;
+      ? process.env.BACKEND_URL
+      : `${req.protocol}://${req.get("host")}`;
 
     let image;
     if (req.file) {

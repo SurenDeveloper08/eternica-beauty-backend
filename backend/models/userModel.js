@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto')
 
@@ -8,7 +8,7 @@ const cartItemSchema = new mongoose.Schema({
     slug: { type: String, required: true },
     quantity: { type: Number, default: 1 },
     color: { type: String }, // optional color
-    variantId: { type: String },    
+    variantId: { type: String },
     size: { type: String },   // optional size
     sizeId: { type: String }
 });
@@ -19,7 +19,7 @@ const deliveryAddressSchema = new mongoose.Schema({
     email: { type: String },
     address: { type: String, required: true },
     country: { type: String, required: true },
-    countryCode: { type: String},
+    countryCode: { type: String },
     city: { type: String, required: false },
     zipCode: { type: String },
     isDefault: { type: Boolean, default: false }
@@ -52,6 +52,18 @@ const userSchema = new mongoose.Schema({
     role: {
         type: String,
         default: 'user'
+    },
+    isVerified: {
+        type: Boolean,
+        default: false,
+    },
+    otp: {
+        type: String,
+        select: false,
+    },
+    otpExpire: {
+        type: Date,
+        select: false,
     },
     cart: [cartItemSchema],
     addresses: [deliveryAddressSchema],

@@ -1,6 +1,55 @@
 const Seo = require('../models/seoModel');
 const catchAsyncError = require('../middlewares/catchAsyncError');
 const ErrorHandler = require('../utils/errorHandler');
+const Category = require('../models/categoryModel');
+const Product = require('../models/productModel');
+const Blog = require('../models/blogModel');
+const countryData = require('../data/countryData.json');
+
+exports.seo = async (req, res) => {
+  try {
+    const { path = '/', country = 'uae', category, subcategory, product, blog } = req.query;
+
+    if (!countryData[country]) {
+      return res.status(400).json({ error: 'Invalid country' });
+    }
+    let seoData = {};
+    if (path === '/' || path === `/${country}/`) {
+       let page = 'home';
+      seoData = await Seo.findOne({ page });
+    } else if (path.includes('/blogs')) {
+      seoData = await fetchBlogsSEO(country);
+    } else if (path.includes('/blog') && blog) {
+      seoData = await fetchBlogSEO(blog, country);
+    } else if (product) {
+      seoData = await fetchProductSEO(product, country);
+    } else if (subcategory) {
+      seoData = await fetchSubCategorySEO(category, subcategory, country);
+    } else if (category) {
+      seoData = await fetchCategorySEO(category, country);
+    }
+
+    if (!seoData) {
+      seoData = {
+        metaTitle: 'SPA Store – Premium Spa Products in {country}',
+        metaDescription: 'Shop spa & wellness products in {city}',
+        metaKeywords: 'spa, wellness, massage',
+      };
+    }
+    const meta = mapToSEOMeta(seoData, countryData, country);
+    meta.canonical = `${process.env.FRONTEND_URL}${path}`;
+    meta.alternates = Object.keys(countryData).map(c => ({
+      hreflang: c,
+      href: `${process.env.FRONTEND_URL}/${c}${path.replace(/^\/[^\/]+/, '')}`
+    }));
+  
+    return res.json(meta);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch SEO' });
+  }
+}
 
 // Get SEO by Page Path
 exports.getSeoByPage = async (req, res) => {
@@ -14,7 +63,7 @@ exports.getSeoByPage = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-  
+
 // controllers/seoController.js
 exports.upsertSeo = async (req, res) => {
   try {
@@ -40,3 +89,87 @@ exports.upsertSeo = async (req, res) => {
   }
 };
 
+function capitalizeWords(str) {
+  if (!str) return '';
+  return str
+    .split(',')          // split multiple cities
+    .map(s =>
+      s
+        .trim()
+        .split(' ')      // split words in a city
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ')
+    )
+    .join(', ');
+}
+
+
+// Map to simplified SEO format
+function mapToSEOMeta(doc, countryData, country) {
+  const citiesStr = capitalizeWords(countryData[country].cities.join(', '));
+  const countryName = countryData[country].name;
+  
+  return {
+    title: String(doc.metaTitle)
+      .replace(/{city}/g, citiesStr)
+      .replace(/{country}/g, countryName),
+    description: String(doc.metaDescription)
+      .replace(/{city}/g, citiesStr)
+      .replace(/{country}/g, countryName),
+    keywords: String(doc.metaKeywords)
+      .replace(/{city}/g, citiesStr)
+      .replace(/{country}/g, countryName),
+  };
+}
+
+async function fetchCategorySEO(categorySlug, country) {
+  // Use lean() to return plain JS object (faster than Mongoose document)
+  const category = await Category.findOne({ slug: categorySlug });
+
+  // Fallback defaults
+  const name = category?.name || categorySlug;
+
+  return {
+    metaTitle: category?.seo?.metaTitle || `${name} - {country}`,
+    metaDescription: category?.seo?.metaDescription || `Explore ${name} products available in {city}`,
+    metaKeywords: category?.seo?.metaKeywords || `${name}, {country} {city}`,
+    canonicalUrl: category?.seo?.canonicalUrl || `/category/${categorySlug}`,
+  };
+}
+
+async function fetchSubCategorySEO(categorySlug, subcategorySlug, country = '', city = '') {
+  const category = await Category.findOne({ slug: categorySlug })
+    .select('name subcategories.seo subcategories.name subcategories.slug')
+    .lean();
+
+  const sub = category?.subcategories.find(s => s.slug === subcategorySlug);
+  const name = sub?.name || subcategorySlug;
+
+  return {
+    metaTitle: sub?.seo?.metaTitle || `${name} - {country}`,
+    metaDescription: sub?.seo?.metaDescription || `Explore ${name} products available in {city}`,
+    metaKeywords: sub?.seo?.metaKeywords || `${name} {country}, ${name} {city}`,
+    canonicalUrl: sub?.seo?.canonicalUrl || `/category/${categorySlug}/${subcategorySlug}`,
+  };
+}
+
+async function fetchProductSEO(productSlug, country) {
+  const product = await Product.findOne({ slug: productSlug });
+  const name = product?.productName || productSlug;
+
+  return {
+    metaTitle: product?.seo?.metaTitle || `${name} - {country}`,
+    metaDescription: product?.seo?.metaDescription || `Check out ${name} available in {city}`,
+    metaKeywords: product?.seo?.metaKeywords || `${name}, {country}, {city}`,
+    canonicalUrl: product?.seo?.canonicalUrl || `/product/${productSlug}`,
+  };
+}
+
+async function fetchBlogsSEO(country) {
+  return { title: 'SPA Blogs', description: 'All spa articles', keywords: 'spa, wellness, blog' };
+}
+
+async function fetchBlogSEO(blogSlug, country) {
+  const blog = await Blog.findOne({ slug: blogSlug });
+  return blog?.seo || { title: blog?.title || 'Blog', description: '', keywords: '' };
+}

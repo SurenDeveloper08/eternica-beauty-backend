@@ -17,6 +17,7 @@ const upload = multer({
 
 const {
     createCategory,
+    getActiveSubByCat,
     getActiveCategories,
     getAllCategories,
     getSingleCategory,
@@ -34,6 +35,7 @@ const {
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate');
 
 router.route('/categories').get(getActiveCategories); //used
+router.route('/filtersubbycat').get(getActiveSubByCat);
 
 router.route('/admin/categories/all').get(isAuthenticatedUser, authorizeRoles('admin'), getAllCategories);
 router.route('/admin/category/:id').get(isAuthenticatedUser, authorizeRoles('admin'), getSingleCategory);

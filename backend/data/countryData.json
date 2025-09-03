@@ -1,0 +1,8 @@
+{
+  "uae": { "name": "UAE", "cities": ["Dubai", "Abu Dhabi", "Sharjah"] },
+  "saudi": { "name": "Saudi Arabia", "cities": ["Riyadh", "Jeddah", "Dammam"] },
+  "kuwait": { "name": "Kuwait", "cities": ["Kuwait City", "Al Ahmadi"] },
+  "qatar": { "name": "Qatar", "cities": ["Doha", "Al Rayyan"] },
+  "oman": { "name": "Oman", "cities": ["Muscat", "Salalah"] },
+  "bahrain": { "name": "Bahrain", "cities": ["Manama", "Riffa"] }
+}

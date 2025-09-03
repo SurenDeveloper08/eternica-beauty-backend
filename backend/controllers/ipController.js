@@ -1,7 +1,16 @@
 const catchAsyncError = require('../middlewares/catchAsyncError')
 const getCountryFromIP = require('../utils/getCountryFromIP');
 const axios = require("axios");
+const geoip = require('geoip-lite');
 
+const countryMap = {
+  AE: 'uae',
+  SA: 'saudi-arabia',
+  QA: 'qatar',
+  KW: 'kuwait',
+  OM: 'oman',
+  BH: 'bahrain'
+};
 
 exports.getCountry = catchAsyncError(async (req, res, next) => {
   try {
@@ -59,3 +68,35 @@ exports.getCountry = catchAsyncError(async (req, res, next) => {
   }
 });
 
+exports.getUserCountry = async (req, res) => {
+  try {
+    // Get client IP
+    // let ip = req.headers['x-forwarded-for']?.split(',')[0] ||
+    //          req.connection?.remoteAddress ||
+    //          req.socket?.remoteAddress ||
+    //          req.ip;
+     let ip= '2001:8f8:1da2:6f9d:e0c0:8b8:ae7b:ad9' 
+    // Remove IPv6 prefix
+    if (ip?.startsWith('::ffff:')) ip = ip.split('::ffff:')[1];
+
+    // Fallback for local testing
+    if (!ip || ip === '127.0.0.1') ip = '207.97.227.239';
+
+    var geo = geoip.lookup(ip);
+    const countryCode = geo.country || 'AE'; // Default UAE
+     const country = countryMap[countryCode] || 'uae';
+
+    res.status(200).json({
+      success: true,
+      country,
+      countryCode
+    });
+  } catch (err) {
+    console.error('GeoIP Error:', err.message);
+    res.status(500).json({
+      success: false,
+      country: 'uae',
+      message: 'Failed to detect country'
+    });
+  }
+};

@@ -15,6 +15,7 @@ const upload = multer({storage: multer.diskStorage({
 const { 
     addAddress,
     registerUser,
+    verifyOtp,
     getAddress,
     setDefaultAddress,
     updateAddress,
@@ -28,13 +29,16 @@ const {
     getAllUsers,
     getUser,
     updateUser,
-    deleteUser
+    deleteUser,
+    resendOtp
  } = require('../controllers/authController');
 const router = express.Router();
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate')
 
 router.route('/login').post(loginUser); 
 router.route('/register').post(upload.single('avatar'), registerUser);
+router.route('/verify').post(verifyOtp);
+router.route('/resend').post(resendOtp);
 router.route('/logout').get(logoutUser); 
 
 

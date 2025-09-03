@@ -7,5 +7,7 @@ const seoSchema = new mongoose.Schema({
   metaKeywords: { type: String },
   canonicalUrl: { type: String }
 }, { timestamps: true });
-                                                                                                                                                                                                                 0
+
 module.exports = mongoose.model('Seo', seoSchema);
+
+

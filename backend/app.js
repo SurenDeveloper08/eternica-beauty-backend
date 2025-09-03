@@ -9,7 +9,7 @@ const cors = require('cors');
 dotenv.config({ path: path.join(__dirname, "config/config.env") });
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://spastore.me',
+origin: process.env.FRONTEND_URL || 'https://spastore.me',
   credentials: true,
 }));
 

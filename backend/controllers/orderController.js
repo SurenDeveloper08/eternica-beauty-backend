@@ -5,7 +5,7 @@ const User = require('../models/userModel');
 const Product = require('../models/productModel');
 const ErrorHandler = require('../utils/errorHandler');
 const moment = require('moment');
-const sendEmail = require('../utils/email');
+const { sendEmail } = require('../utils/email');
 const { loginUser } = require('./authController');
 
 async function updateStock(slug, quantity, color = null, size = null) {

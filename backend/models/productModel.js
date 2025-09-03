@@ -70,7 +70,7 @@ productSchema.pre('validate', async function (next) {
         let baseSlug = slugify(this.productName, { lower: true, strict: true });
         let slug = baseSlug;
         let counter = 1;
-
+        
         while (await this.constructor.exists({ slug, _id: { $ne: this._id } })) {
             slug = `${baseSlug}-${counter}`;
             counter++;

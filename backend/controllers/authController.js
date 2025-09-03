@@ -1,38 +1,127 @@
-const { log } = require('console');
 const catchAsyncError = require('../middlewares/catchAsyncError');
 const User = require('../models/userModel');
 const sendEmail = require('../utils/email');
 const ErrorHandler = require('../utils/errorHandler');
 const sendToken = require('../utils/jwt');
 const crypto = require('crypto')
+const otpStore = require('../utils/otpStore');
+const { sendOtpEmail } = require('../utils/email');
+const bcrypt = require('bcryptjs');
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-//Register User - /api/v1/register
 exports.registerUser = catchAsyncError(async (req, res, next) => {
-    const { name, email, phone, password, role } = req.body
+    const { name, email, phone, password, role } = req.body;
 
-    let avatar;
+    let user = await User.findOne({ email });
 
+    if (user) {
+        if (user.isVerified) {
+            return res.status(400).json({ success: false, message: "User already exists. Please login." });
+        } else {
+            // User exists but not verified → resend OTP
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const otpExpire = Date.now() + 10 * 60 * 1000;
 
-    let BASE_URL = process.env.NODE_ENV === "production"
-        ? process.env.BACKEND_URL
-        : `${req.protocol}://${req.get("host")}`;
+            user.name = name;       // optional: update name
+            user.phone = phone;     // optional: update phone
+            user.password = password; // optional: update password
+            user.role = role;
+            user.otp = otp;
+            user.otpExpire = otpExpire;
+            await user.save();
 
-    if (req.file) {
-        avatar = `${BASE_URL}/uploads/user/${req.file.originalname}`
+            await sendOtpEmail(email, name, otp);
+
+            return res.status(200).json({
+                success: true,
+                message: "New OTP sent to your email.",
+                email
+            });
+        }
     }
 
-    const user = await User.create({
+    // New user → create user and send OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpire = Date.now() + 10 * 60 * 1000;
+
+    user = await User.create({
         name,
-        phone,
         email,
-        role,
+        phone,
         password,
-        avatar
+        role,
+        otp,
+        otpExpire
     });
 
-    sendToken(user, 201, res)
+    await sendOtpEmail(email, name, otp);
 
-})
+    res.status(200).json({
+        success: true,
+        message: "OTP sent to your email. Please verify to complete registration.",
+        email
+    });
+});
+
+
+exports.verifyOtp = catchAsyncError(async (req, res, next) => {
+    const { email, otp } = req.body;
+
+    // 1️ Find the user including OTP fields
+    const user = await User.findOne({ email }).select("+otp +otpExpire");
+
+    if (!user) {
+        return res.status(404).json({
+            success: false,
+            message: "No account found with this email. Please sign up first."
+        });
+    }
+
+    // 2️ Check if user is already verified
+    if (user.isVerified) {
+        return res.status(200).json({
+            success: true,
+            message: "Account already verified. Please login."
+        });
+    }
+
+    // Check if OTP exists
+    if (!user.otp || !user.otpExpire) {
+        return res.status(400).json({
+            success: false,
+            message: "No OTP found. Please request a new one."
+        });
+    }
+
+    //  Check if OTP expired
+    if (user.otpExpire.getTime() < Date.now()) {
+        user.otp = undefined;
+        user.otpExpire = undefined;
+        await user.save();
+        return res.status(400).json({
+            success: false,
+            message: "OTP expired. Please request a new one."
+        });
+    }
+
+    //  Validate OTP
+    if (user.otp !== otp) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid OTP. Please enter the correct code."
+        });
+    }
+
+    // Mark user as verified
+    user.isVerified = true;
+    user.otp = undefined;
+    user.otpExpire = undefined;
+    await user.save();
+
+    //  Send JWT token
+    sendToken(user, 200, res);
+});
+
 
 //Login User - /api/v1/login
 exports.loginUser = catchAsyncError(async (req, res, next) => {
@@ -48,14 +137,43 @@ exports.loginUser = catchAsyncError(async (req, res, next) => {
     if (!user) {
         return next(new ErrorHandler('Invalid email or password', 401))
     }
-
+    if (!user?.isVerified) return res.status(403).json({ success: false, message: 'Invalid email or password' });
+    
     if (!await user.isValidPassword(password)) {
         return next(new ErrorHandler('Invalid email or password', 401))
     }
-
     sendToken(user, 201, res)
-
 })
+
+// controllers/authController.js
+exports.resendOtp = catchAsyncError(async (req, res, next) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ success: false, message: "Email is required." });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ email });
+    if (!user) {
+        return res.status(404).json({ success: false, message: "No account found. Please sign up first." });
+    }
+
+    // Already verified
+    if (user.isVerified) {
+        return res.status(200).json({ success: true, message: "Account already verified. Please login." });
+    }
+
+    // Generate new OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save();
+
+    await sendOtpEmail(email, user.name, otp);
+
+    res.status(200).json({ success: true, message: "OTP resent to your email." });
+});
 
 //Logout - /api/v1/logout
 exports.logoutUser = (req, res, next) => {
@@ -204,8 +322,8 @@ exports.updateAddress = catchAsyncError(async (req, res, next) => {
         if (isDefault) {
             user.addresses.forEach(addr => (addr.isDefault = false));
         }
-         const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
-      Object.assign(addressToUpdate, {
+        const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
+        Object.assign(addressToUpdate, {
             name: capitalizedName,
             phone,
             email,

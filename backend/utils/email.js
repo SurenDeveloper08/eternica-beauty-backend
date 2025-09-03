@@ -718,6 +718,14 @@ const generateMsg = () => {
       </tr>`;
 };
 
+const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT,
+        auth: {
+            user: process.env.SMTP_EMAIL,
+            pass: process.env.SMTP_PASS,
+        },
+    });
 
 const sendEmail = async (to, type, data, status, currency, eligible, invoice) => {
     let adminSubject = '';
@@ -806,14 +814,7 @@ const sendEmail = async (to, type, data, status, currency, eligible, invoice) =>
         invoiceButton: status === 'Delivered' && type === 'customer' ? generateInvoice(invoice) : '',
         undeliverable: !eligible ? generateMsg() : ''
     });
-    const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
-        auth: {
-            user: process.env.SMTP_EMAIL,
-            pass: process.env.SMTP_PASS,
-        },
-    });
+    
     const mailOptions = {
         from: `"SPA STORE" <${process.env.SMTP_EMAIL}>`,
         to,
@@ -823,6 +824,30 @@ const sendEmail = async (to, type, data, status, currency, eligible, invoice) =>
 
     await transporter.sendMail(mailOptions);
 };
+const sendOtpEmail = async (to, name, otp) => {
+   // Email subject
+     const templatePath = path.join(__dirname, '../templates/otp.html');
+
+    if (!fs.existsSync(templatePath)) {
+        console.error('❌ OTP template not found:', templatePath);
+        return;
+    }
+
+    let html = fs.readFileSync(templatePath, 'utf-8');
+    html = html.replace(/{{name}}/g, name)
+               .replace(/{{otp}}/g, otp); // Replace with actual logo URL
+
+    // HTML template
+  
+    const mailOptions = {
+        from: `"SPA STORE" <${process.env.SMTP_EMAIL}>`,
+        to,
+        subject: "Your SPA STORE OTP Code",
+        html,
+    };
+
+    await transporter.sendMail(mailOptions);
+};
 
 
-module.exports = sendEmail;
+module.exports = {sendEmail, sendOtpEmail};

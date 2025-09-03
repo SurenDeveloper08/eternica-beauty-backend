@@ -88,8 +88,8 @@ exports.getProductsByCategory = catchAsyncError(async (req, res, next) => {
 })
 
 exports.getProductsBySubCategory = async (req, res) => {
-    try {
-        const currency = req.query.currency || 'AED';
+    try {  
+       const currency = req.query.currency || 'AED';
         const { categorySlug, subcategorySlug } = req.query;
 
         if (!categorySlug || !subcategorySlug) {
@@ -221,6 +221,7 @@ exports.getProductsBySCFilter = catchAsyncError(async (req, res, next) => {
         const converted = await Promise.all(
             products.map(p => convertProductPrices(p, currency))
         );
+         
         //Return response
         return res.status(200).json({
             success: true,
