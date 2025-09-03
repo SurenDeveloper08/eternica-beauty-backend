@@ -3,48 +3,49 @@ const Blog = require('../models/blogModel');
 const ErrorHandler = require('../utils/errorHandler');
 
 exports.addBlog = catchAsyncError(async (req, res, next) => {
-  let BASE_URL =
-    process.env.NODE_ENV === "production"
-      ? process.env.BACKEND_URL
-      : `${req.protocol}://${req.get("host")}`;
+    let BASE_URL =
+        process.env.NODE_ENV === "production"
+            ? process.env.BACKEND_URL
+            : `${req.protocol}://${req.get("host")}`;
 
-  const { title, slug, content, metaTitle, metaDescription, metaKeywords, canonicalUrl, isActive } = req.body;
+    const { title, content, metaTitle, metaDescription, metaKeywords, canonicalUrl, isActive } = req.body;
+    const slug = req.body.title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
 
-  // Validate required fields
-  if (!title || !slug || !content) {
-    return res.status(400).json({ message: "Title, slug, and content are required" });
-  }
+    // Validate required fields
+    if (!title || !slug || !content) {
+        return res.status(400).json({ message: "Title, slug, and content are required" });
+    }
 
-  // Check for duplicate slug
-  const exists = await Blog.findOne({ slug });
-  if (exists) {
-    return res.status(409).json({ message: "Slug already exists" });
-  }
+    // Check for duplicate slug
+    const exists = await Blog.findOne({ slug });
+    if (exists) {
+        return res.status(409).json({ message: "Slug already exists" });
+    }
 
-  // Build data object
-  const blogData = {
-    title,
-    slug,
-    content,
-    metaTitle,
-    metaDescription,
-    metaKeywords,
-    canonicalUrl,
-    isActive: isActive !== undefined ? isActive : true,
-  };
+    // Build data object
+    const blogData = {
+        title,
+        slug,
+        content,
+        metaTitle,
+        metaDescription,
+        metaKeywords,
+        canonicalUrl,
+        isActive: isActive !== undefined ? isActive : true,
+    };
 
-  // ✅ If an image was uploaded by multer
-  if (req.file) {
-    blogData.image = `${BASE_URL}/uploads/blog/${req.file.filename}`;
-  }
+    // ✅ If an image was uploaded by multer
+    if (req.file) {
+        blogData.image = `${BASE_URL}/uploads/blog/${req.file.filename}`;
+    }
 
-  // Create blog
-  const blog = await Blog.create(blogData);
+    // Create blog
+    const blog = await Blog.create(blogData);
 
-  res.status(201).json({
-    success: true,
-    data: blog,
-  });
+    res.status(201).json({
+        success: true,
+        data: blog,
+    });
 });
 
 exports.getAllBlogs = catchAsyncError(async (req, res, next) => {
