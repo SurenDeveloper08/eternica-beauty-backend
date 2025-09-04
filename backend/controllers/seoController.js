@@ -15,7 +15,7 @@ exports.seo = async (req, res) => {
     }
     let seoData = {};
     if (path === '/' || path === `/${country}/`) {
-       let page = 'home';
+      let page = 'home';
       seoData = await Seo.findOne({ page });
     } else if (path.includes('/blogs')) {
       seoData = await fetchBlogsSEO(country);
@@ -38,11 +38,33 @@ exports.seo = async (req, res) => {
     }
     const meta = mapToSEOMeta(seoData, countryData, country);
     meta.canonical = `${process.env.FRONTEND_URL}${path}`;
-    meta.alternates = Object.keys(countryData).map(c => ({
-      hreflang: c,
-      href: `${process.env.FRONTEND_URL}/${c}${path.replace(/^\/[^\/]+/, '')}`
-    }));
-  
+
+    meta.alternates = [
+      {
+        hreflang: "x-default",
+        href: `${process.env.FRONTEND_URL}/uae${path.replace(/^\/[^\/]+/, '')}`
+      },
+      ...Object.entries(countryData).map(([key, country]) => ({
+        hreflang: country.hreflang,
+        href: `${process.env.FRONTEND_URL}/${key}${path.replace(/^\/[^\/]+/, '')}`
+      }))
+    ];
+
+    meta.openGraph = {
+      "og:title": meta.title,
+      "og:description": meta.description,
+      "og:image": seoData?.ogImage || `https://spastore.me/static/media/logo.f33ca0853c59392b6689.png`,
+      "og:url": meta.canonical,
+      "og:type": seoData.ogType || "website"
+    };
+
+    meta.twitter = {
+      "twitter:card": "summary_large_image",
+      "twitter:title": meta.title,
+      "twitter:description": meta.description,
+      "twitter:image": seoData?.ogImage || `https://spastore.me/static/media/logo.f33ca0853c59392b6689.png`,
+    };
+
     return res.json(meta);
 
   } catch (err) {
@@ -103,12 +125,11 @@ function capitalizeWords(str) {
     .join(', ');
 }
 
-
 // Map to simplified SEO format
 function mapToSEOMeta(doc, countryData, country) {
   const citiesStr = capitalizeWords(countryData[country].cities.join(', '));
   const countryName = countryData[country].name;
-  
+
   return {
     title: String(doc.metaTitle)
       .replace(/{city}/g, citiesStr)
@@ -134,6 +155,8 @@ async function fetchCategorySEO(categorySlug, country) {
     metaDescription: category?.seo?.metaDescription || `Explore ${name} products available in {city}`,
     metaKeywords: category?.seo?.metaKeywords || `${name}, {country} {city}`,
     canonicalUrl: category?.seo?.canonicalUrl || `/category/${categorySlug}`,
+    ogImage: category?.image,
+    ogType: "website"
   };
 }
 
@@ -150,6 +173,8 @@ async function fetchSubCategorySEO(categorySlug, subcategorySlug, country = '', 
     metaDescription: sub?.seo?.metaDescription || `Explore ${name} products available in {city}`,
     metaKeywords: sub?.seo?.metaKeywords || `${name} {country}, ${name} {city}`,
     canonicalUrl: sub?.seo?.canonicalUrl || `/category/${categorySlug}/${subcategorySlug}`,
+    ogImage: sub?.image,
+    ogType: "website"
   };
 }
 
@@ -162,14 +187,30 @@ async function fetchProductSEO(productSlug, country) {
     metaDescription: product?.seo?.metaDescription || `Check out ${name} available in {city}`,
     metaKeywords: product?.seo?.metaKeywords || `${name}, {country}, {city}`,
     canonicalUrl: product?.seo?.canonicalUrl || `/product/${productSlug}`,
+    ogImage: product?.image,
+    ogType: "product"
   };
 }
 
 async function fetchBlogsSEO(country) {
-  return { title: 'SPA Blogs', description: 'All spa articles', keywords: 'spa, wellness, blog' };
+  return {
+    title: 'Spa Store - Blogs',
+    description: 'All spa articles',
+    keywords: 'spa, wellness, blog',
+    canonicalUrl: `/blogs`,
+    ogImage: `https://spastore.me/static/media/logo.f33ca0853c59392b6689.png`,
+    ogType: "website"
+  };
 }
 
 async function fetchBlogSEO(blogSlug, country) {
   const blog = await Blog.findOne({ slug: blogSlug });
-  return blog?.seo || { title: blog?.title || 'Blog', description: '', keywords: '' };
+  return {
+    title: blog?.metaTitle || blog?.title,
+    description: blog?.metaDescription,
+    keywords: blog?.metaKeywords,
+    canonicalUrl: blog?.canonicalUrl || `/blog/${blog.slug}`,
+    ogImage: blog?.image,
+    ogType: "article"
+  };
 }

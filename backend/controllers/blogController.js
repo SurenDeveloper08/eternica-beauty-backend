@@ -9,7 +9,7 @@ exports.addBlog = catchAsyncError(async (req, res, next) => {
             : `${req.protocol}://${req.get("host")}`;
 
     const { title, content, metaTitle, metaDescription, metaKeywords, canonicalUrl, isActive } = req.body;
-    const slug = req.body.title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+    const slug = title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
 
     // Validate required fields
     if (!title || !slug || !content) {
