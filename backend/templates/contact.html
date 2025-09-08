@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPA STORE Contact Message</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: #d5ffec;
+    }
+    .container {
+      max-width: 600px;
+      margin: 30px auto;
+      background-color: #ffffff;
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+    .logo {
+      margin-bottom: 20px;
+    }
+    .logo img {
+      height: 60px;
+    }
+    h1 {
+      color: #3BB773;
+      font-size: 32px;
+      font-weight: 700;
+      margin: 20px 0;
+    }
+    h2 {
+      color: #000000;
+      font-weight: 700;
+      margin-bottom: 15px;
+    }
+    p {
+      color: #000000;
+      font-size: 16px;
+      line-height: 1.5;
+      margin: 10px 0;
+    }
+    a {
+      color: #3BB773;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .footer {
+      color: #000000;
+      font-size: 14px;
+      margin-top: 30px;
+    }
+    @media screen and (max-width: 480px) {
+      .container {
+        padding: 20px;
+      }
+      h1 {
+        font-size: 28px;
+      }
+      h2 {
+        font-size: 22px;
+      }
+      p {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <img src="https://cloudfilesdm.com/postcards/unnamed-0656801a.png" alt="SPA STORE Logo">
+    </div>
+
+    <h2>New Contact Message</h2>
+    <p style="font-size:16px; font-weight:600;">Hi Team,</p>
+    <p>You have received a new message from your SPA STORE contact form:</p>
+
+    <p><strong>Name:</strong> {{firstName}} {{lastName}}</p>
+    <p><strong>Email:</strong> <a href="mailto:{{email}}">{{email}}</a></p>
+    <p><strong>Mobile:</strong> {{mobile}}</p>
+    <p><strong>Subject:</strong> {{subject}}</p>
+    <p><strong>Message:</strong></p>
+    <p>{{message}}</p>
+
+    <p>Please reply to the user as soon as possible.</p>
+
+    <p>Thank you,<br><strong>Team SPA STORE</strong></p>
+
+    <div class="footer">
+      &copy; 2025 SPA STORE. All Rights Reserved.
+    </div>
+  </div>
+</body>
+</html>

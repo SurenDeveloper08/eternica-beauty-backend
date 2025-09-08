@@ -848,6 +848,31 @@ const sendOtpEmail = async (to, name, otp) => {
 
     await transporter.sendMail(mailOptions);
 };
+const sendContactEmail = async (to, firstName, lastName, email, mobile, subject, message) => {
+   // Email subject
+     const templatePath = path.join(__dirname, '../templates/contact.html');
 
+    if (!fs.existsSync(templatePath)) {
+        console.error('❌ contact template not found:', templatePath);
+        return;
+    }
 
-module.exports = {sendEmail, sendOtpEmail};
+    let html = fs.readFileSync(templatePath, 'utf-8');
+    html = html.replace(/{{firstName}}/g, firstName)
+               .replace(/{{lastName}}/g, lastName) // Replace with actual logo URL
+               .replace(/{{email}}/g, email)
+               .replace(/{{mobile}}/g, mobile)
+               .replace(/{{subject}}/g, subject)
+               .replace(/{{message}}/g, message);
+
+    const mailOptions = {
+        from: `"SPA STORE" <${process.env.SMTP_EMAIL}>`,
+        to,
+        subject: `SPA STORE: New Message from ${firstName} ${lastName}`,
+        html,
+    };
+
+   await transporter.sendMail(mailOptions);
+};
+
+module.exports = {sendEmail, sendOtpEmail, sendContactEmail};
