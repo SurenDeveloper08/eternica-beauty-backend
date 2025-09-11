@@ -14,9 +14,11 @@ const server = app.listen(process.env.PORT, () => {
 const io = socketIO(server, {
     cors: {
         origin: process.env.FRONTEND_URL || 'https://spastore.me',
-        methods: ['GET', 'POST']
+        methods: ['GET', 'POST'],
+        credentials: true
     }
 });
+
 
 app.set('io', io);
 
