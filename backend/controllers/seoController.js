@@ -64,7 +64,6 @@ exports.seo = async (req, res) => {
       "twitter:description": meta.description,
       "twitter:image": seoData?.ogImage || `https://spastore.me/static/media/logo.f33ca0853c59392b6689.png`,
     };
-
     return res.json(meta);
 
   } catch (err) {

@@ -39,6 +39,7 @@ const sitemap = require('./routes/sitemap')
 const blog = require('./routes/blog')
 const ip = require('./routes/ip')
 const contact = require('./routes/contact')
+const topCategory = require('./routes/topCategory')
 app.use('/api/v1/', products);
 app.use('/api/v1/', category);
 app.use('/api/v1/', auth);
@@ -57,6 +58,7 @@ app.use('/api/v1/', gcc)
 app.use('/api/v1/', blog)
 app.use('/api/v1/', ip);
 app.use('/api/v1/', contact);
+app.use('/api/v1/', topCategory);
 app.use('/', sitemap);
 // app.use('/api/v1/',payment);
 
