@@ -12,6 +12,7 @@ const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenti
 };
 
 router.route('/seo').get(seo);
+router.route('/seobypage').get(isAuthenticatedUser, authorizeRoles('admin'), getSeoByPage);
 router.route('/seo').post(isAuthenticatedUser, authorizeRoles('admin'), upsertSeo);
 
 module.exports = router;
