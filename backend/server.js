@@ -11,23 +11,6 @@ const server = app.listen(process.env.PORT, () => {
     console.log(`My Server listening to the port: ${process.env.PORT} in  ${process.env.NODE_ENV} `)
 })
 
-const io = socketIO(server, {
-    cors: {
-        origin: process.env.FRONTEND_URL || 'https://spastore.me',
-        methods: ['GET', 'POST'],
-        credentials: true
-    }
-});
-
-
-app.set('io', io);
-
-io.on('connection', (socket) => {
-    socket.on('disconnect', () => {
-        console.log('Client disconnected');
-    });
-});
-
 process.on('unhandledRejection', (err) => {
     console.log(`Error: ${err.message}`);
     console.log('Shutting down the server due to unhandled rejection error');

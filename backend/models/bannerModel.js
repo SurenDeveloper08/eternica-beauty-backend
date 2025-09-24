@@ -10,9 +10,14 @@ const bannerSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  link: {
+  category: {
     type: String,
-    required: true
+    required: true,
+    trim: true
+  },
+  subCategory: {
+    type: String,
+    trim: true
   },
   sortOrder: Number,
   createdAt: {

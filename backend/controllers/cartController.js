@@ -236,7 +236,7 @@ exports.getCart = async (req, res, next) => {
 };
 
 exports.mergeGuestCart = catchAsyncError(async (req, res, next) => {
-    
+
     const guestCart = req.body.cart; // Array of guest cart items
     const userId = req.user?._id;
 
@@ -298,11 +298,30 @@ exports.mergeGuestCart = catchAsyncError(async (req, res, next) => {
 
 exports.validateCart = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user._id);
+
+        console.log('entered');
+
+        let cart = [];
+
         const currency = req.query.currency?.toUpperCase() || 'AED';
         const country = req.query.country?.toUpperCase(); // may be empty
 
-        if (!user || !user.cart?.length) {
+        if (req.user) {
+            // Logged-in user
+            const user = await User.findById(req.user._id);
+            cart = user?.cart || [];
+        } else {
+            console.log('entered guest');
+            // Guest user
+            try {
+               cart = req.body?.cart || [];
+
+            } catch {
+                cart = [];
+            }
+        }
+        console.log(cart);
+        if (!cart.length) {
             return res.status(200).json({
                 success: true,
                 count: 0,
@@ -317,7 +336,7 @@ exports.validateCart = async (req, res, next) => {
         let rawTotalPrice = 0;
         let eligibleSubtotalConverted = 0;
 
-        const cartItems = await Promise.all(user.cart.map(async (item) => {
+        const cartItems = await Promise.all(cart.map(async (item) => {
             const product = await Product.findOne({ slug: item.slug }).select(
                 'productName image images price stock variants slug sellGlobally restrictedCountries allowedCountries'
             );

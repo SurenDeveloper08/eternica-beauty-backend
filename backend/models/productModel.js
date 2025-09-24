@@ -5,9 +5,11 @@ const specificationSchema = new mongoose.Schema({
     key: String,
     value: String,
 });
+
 const descriptionSchema = new mongoose.Schema({
     description: String
 });
+
 const seoSchema = new mongoose.Schema({
     metaTitle: { type: String },
     metaDescription: { type: String },
@@ -70,7 +72,7 @@ productSchema.pre('validate', async function (next) {
         let baseSlug = slugify(this.productName, { lower: true, strict: true });
         let slug = baseSlug;
         let counter = 1;
-        
+
         while (await this.constructor.exists({ slug, _id: { $ne: this._id } })) {
             slug = `${baseSlug}-${counter}`;
             counter++;

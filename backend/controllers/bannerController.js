@@ -4,14 +4,15 @@ const ErrorHandler = require('../utils/errorHandler');
 
 exports.bannerUpload = catchAsyncError(async (req, res, next) => {
     const files = req.files;
-    const { names, links, sortOrders } = req.body;
+    const { names, links, category, subCategory, sortOrders } = req.body;
 
-    
     let BASE_URL = process.env.NODE_ENV === "production"
         ? process.env.BACKEND_URL
         : `${req.protocol}://${req.get("host")}`;
 
     const safeNames = Array.isArray(names) ? names : [names];
+    const safeCategory = Array.isArray(category) ? category : [category];
+    const safeSubCategory = Array.isArray(subCategory) ? subCategory : [subCategory];
     const safeLinks = Array.isArray(links) ? links : [links];
     const safeSortOrders = Array.isArray(sortOrders) ? sortOrders : [sortOrders];
 
@@ -21,7 +22,8 @@ exports.bannerUpload = catchAsyncError(async (req, res, next) => {
         if (safeNames[i] && safeLinks[i]) {
             banners.push({
                 name: safeNames[i],
-                link: safeLinks[i],
+                category: safeCategory[i],
+                subCategory: safeSubCategory[i],
                 imageUrl: `${BASE_URL}/uploads/banner/${files[i].filename}`,
                 sortOrder: parseInt(safeSortOrders[i]) || 0,
             });
@@ -49,15 +51,16 @@ exports.getBanners = catchAsyncError(async (req, res, next) => {
 // controllers/bannerController.js
 exports.updateBanner = catchAsyncError(async (req, res, next) => {
     const { id } = req.params;
-    const { names, links, sortOrders } = req.body;
-    const file =req.file;
+    const { names, category, subCategory, sortOrders } = req.body;
+    const file = req.file;
     const BASE_URL = process.env.NODE_ENV === "production"
         ? `${req.protocol}://${req.get("host")}`
         : process.env.BACKEND_URL;
 
     let updateData = {
-        name :names,
-        link: links,
+        name: names,
+        category: category,
+        subCategory: subCategory,
         sortOrder: parseInt(sortOrders) || 0,
     };
 
@@ -79,7 +82,7 @@ exports.updateBanner = catchAsyncError(async (req, res, next) => {
         message: "Banner updated successfully",
         data: updatedBanner,
     });
-}); 
+});
 // DELETE /api/v1/banner/:id
 exports.deleteBanner = catchAsyncError(async (req, res, next) => {
     const bannerId = req.params.id;
@@ -100,7 +103,7 @@ exports.getSingleBanner = catchAsyncError(async (req, res, next) => {
     const bannerId = req.params.id;
 
     const data = await Banner.findById(bannerId);
-     
+
     if (!data) {
         return res.status(404).json({
             success: false,

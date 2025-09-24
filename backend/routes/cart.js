@@ -7,6 +7,7 @@ router.route('/cart/add').post(isAuthenticatedUser, addToCart);
 router.route('/cart/merge').post(isAuthenticatedUser, mergeGuestCart);
 router.route('/cart/qty/:slug').get(isAuthenticatedUser, getCartQty);
 router.route('/cart/validate').get(isAuthenticatedUser, validateCart);
+router.route('/cart/guestvalidate').post(validateCart);
 router.route('/cart/get').get(isAuthenticatedUser, getCart); //used
 router.route('/cart/get').post( getCart); //used
 router.route('/cart/:slug').get(isAuthenticatedUser, getCart);

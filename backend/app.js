@@ -9,7 +9,7 @@ const cors = require('cors');
 dotenv.config({ path: path.join(__dirname, "config/config.env") });
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://spastore.me',
+  origin: process.env.FRONTEND_URL || 'http://eternicabeauty.com',
   credentials: true,
 }));
 
@@ -40,6 +40,7 @@ const blog = require('./routes/blog')
 const ip = require('./routes/ip')
 const contact = require('./routes/contact')
 const topCategory = require('./routes/topCategory')
+
 app.use('/api/v1/', products);
 app.use('/api/v1/', category);
 app.use('/api/v1/', auth);
