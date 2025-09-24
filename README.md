@@ -1,4 +1,4 @@
-# Spa store
+# Eternica Beauty
 
 an E-commerce Website built with MERN stack.
 
