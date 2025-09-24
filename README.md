@@ -18,7 +18,7 @@ after that open the backend/config/config.env
 and update the MongoDB connection string
 ```bash
 ...
-DB_LOCAL_URI=mongodb://localhost:27017/spastore
+DB_LOCAL_URI=mongodb://localhost:27017/eternicabeauty
 ```
 
 navigate back to "root" folder and run this command for loading demo data
