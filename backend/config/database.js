@@ -11,21 +11,30 @@ const connectDatabase = async () => {
 
         console.log(`MongoDB is connected to the host: ${con.connection.host}`);
 
-        // Check existing indexes
-        const productIndexes = await mongoose.connection.db.collection('products').indexes();
-        const hasSlugIndex = productIndexes.find(index => index.name === 'slug_1');
-        
-        if (!hasSlugIndex) {
-            console.log("Creating unique index on products.slug");
-            await mongoose.connection.db.collection('products').createIndex({ slug: 1 }, { unique: true });
-            console.log('Unique index on slug created.');
+        const productCollections = await mongoose.connection.db.listCollections({ name: 'products' }).toArray();
+        if (productCollections.length > 0) {
+            const productIndexes = await mongoose.connection.db.collection('products').indexes();
+            const hasSlugIndex = productIndexes.find(index => index.name === 'slug_1');
+            if (!hasSlugIndex) {
+                console.log("Creating unique index on products.slug");
+                await mongoose.connection.db.collection('products').createIndex({ slug: 1 }, { unique: true });
+                console.log('Unique index on slug created.');
+            }
+        } else {
+            console.log("Products collection does not exist. Skipping index creation.");
         }
-        const indexes = await mongoose.connection.db.collection('categories').indexes();
 
-        const hasSubSlugIndex = indexes.find(index => index.name === 'subcategories.slug_1');
-
-        if (hasSubSlugIndex) {
-            await mongoose.connection.db.collection('categories').dropIndex('subcategories.slug_1');
+        // Check if 'categories' collection exists
+        const categoryCollections = await mongoose.connection.db.listCollections({ name: 'categories' }).toArray();
+        if (categoryCollections.length > 0) {
+            const indexes = await mongoose.connection.db.collection('categories').indexes();
+            const hasSubSlugIndex = indexes.find(index => index.name === 'subcategories.slug_1');
+            if (hasSubSlugIndex) {
+                await mongoose.connection.db.collection('categories').dropIndex('subcategories.slug_1');
+                console.log('Dropped subcategories.slug_1 index.');
+            }
+        } else {
+            console.log("Categories collection does not exist. Skipping index operations.");
         }
 
     } catch (err) {

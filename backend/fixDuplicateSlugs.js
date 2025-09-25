@@ -5,12 +5,19 @@ const mongoose = require('mongoose');
 
 const fixDuplicateSlugs = async () => {
   try {
-    await mongoose.connect( process.env.DB_LOCAL_URI, {
+    await mongoose.connect(process.env.DB_LOCAL_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
     console.log('Connected to DB');
 
+    const collections = await mongoose.connection.db.listCollections({ name: 'products' }).toArray();
+    if (collections.length === 0) {
+      console.log('Products collection does not exist. Skipping operations.');
+      await mongoose.disconnect();
+      process.exit(0);
+    }
+    
     const productsCollection = mongoose.connection.db.collection('products');
 
     // Aggregate duplicate slugs
