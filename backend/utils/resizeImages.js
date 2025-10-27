@@ -16,20 +16,19 @@ const resizeImages = async (filePaths, includeLong = false) => {
     const resizedPath = path.join(dir, resizedFilename);
     const longPath = path.join(dir, longFilename);
 
-    // Resize to 610x450 (normal)
+    // Resize to 600 (normal)
     await sharp(filePath)
-      .resize(610, 450, {
+      .resize(600, 600, {
         fit: 'contain',
-        background: { r: 255, g: 255, b: 255 }
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
       })
-      .flatten({ background: { r: 255, g: 255, b: 255 } })
-      .jpeg({ quality: 95 })
+      .png({ quality: 95 }) // PNG keeps transparency
       .toFile(resizedPath);
 
     // Resize long image (1920x750 or your preference)
     if (includeLong) {
       await sharp(filePath)
-        .resize(1920, 750, {
+        .resize(1920, 1920, {
           fit: 'contain',
           background: { r: 255, g: 255, b: 255 }
         })

@@ -2,13 +2,15 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path')
 
-const { 
-   addBlog,
-   getAllBlogs,
-   getOneBlog,
-   updateBlog,
-   deleteBlog
- } = require('../controllers/blogController');
+const {
+  createBlog,
+  getBlog,
+  addBlog,
+  getAllBlogs,
+  getOneBlog,
+  updateBlog,
+  deleteBlog
+} = require('../controllers/blogController');
 const router = express.Router();
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate')
 
@@ -46,9 +48,17 @@ const upload = multer({ storage });
 router.route('/blog').get(getAllBlogs)
 router.route('/blog/:slug').get(getOneBlog);
 //Admin routes
-router.route('/admin/blog/new').post(isAuthenticatedUser,authorizeRoles('admin'), upload.single('image'), addBlog);
-router.route('/admin/blog/:slug').put(isAuthenticatedUser,authorizeRoles('admin'),upload.single('image'), updateBlog);
-router.route('/admin/blog/:slug').get(isAuthenticatedUser,authorizeRoles('admin'), getOneBlog);
-router.route('/admin/blogs').get(isAuthenticatedUser,authorizeRoles('admin'), getAllBlogs);
-router.route('/admin/blog/:slug').delete(isAuthenticatedUser,authorizeRoles('admin'), deleteBlog);
+router.route('/admin/blog/new').post(isAuthenticatedUser, authorizeRoles('admin'), upload.single('image'), addBlog);
+router.route('/admin/blog/:slug').put(isAuthenticatedUser, authorizeRoles('admin'), upload.single('image'), updateBlog);
+router.route('/admin/blog/:slug').get(isAuthenticatedUser, authorizeRoles('admin'), getOneBlog);
+router.route('/admin/blogs').get(isAuthenticatedUser, authorizeRoles('admin'), getAllBlogs);
+router.route('/admin/blog/:slug').delete(isAuthenticatedUser, authorizeRoles('admin'), deleteBlog);
+
+router.route('/admin/blog/new').post(
+  // isAuthenticatedUser, authorizeRoles('admin'),
+  upload.single('image'), createBlog);
+
+router.route('/admin/blog/:slug').get(
+  // isAuthenticatedUser, authorizeRoles('admin'), 
+  getBlog);
 module.exports = router;    

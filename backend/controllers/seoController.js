@@ -76,6 +76,8 @@ exports.seo = async (req, res) => {
 exports.getSeoByPage = async (req, res) => {
   try {
     const { page } = req.query;
+    console.log(page);
+    
     if (!page) return res.status(400).json({ success: false, message: "Page path is required" });
 
     const seo = await Seo.findOne({ page });
@@ -90,6 +92,8 @@ exports.upsertSeo = async (req, res) => {
   try {
     const { page, metaTitle, metaDescription, metaKeywords, canonicalUrl } = req.body;
 
+    console.log(page, metaTitle, metaDescription, metaKeywords, canonicalUrl);
+    
     if (!page || !metaTitle || !metaDescription) {
       return res.status(400).json({
         success: false,

@@ -1,8 +1,6 @@
 
 const app = require('./app')
-const path = require('path');
-const socketIO = require('socket.io');
-const http = require('http');
+
 const connectDatabase = require('./config/database');
 
 connectDatabase();

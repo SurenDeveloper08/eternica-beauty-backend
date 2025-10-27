@@ -1,12 +1,193 @@
 const catchAsyncError = require('../middlewares/catchAsyncError');
 const ProductHighlight = require('../models/highlightModel');
+const Product = require('../models/productModel');
 const ErrorHandler = require('../utils/errorHandler');
-const {convertProductPrices} = require('../utils/convertProductPrices');
+const { convertProductPrices } = require('../utils/convertProductPrices');
+const mongoose = require("mongoose");
+
+//admin
+exports.createProductHighlight = catchAsyncError(async (req, res) => {
+    try {
+
+        const { productId, category, sortOrder, isActive } = req.body;
+        
+        if (!productId || !category) {
+            return res.status(400).json({ success: false, message: "productId and category are required." });
+        }
+
+        const product = await Product.findById(productId );
+        if (!product) {
+            return res.status(404).json({ success: false, message: "Product not found" });
+        }
+
+        const highlight = await ProductHighlight.create({
+            productId:product._id,
+            category,
+            sortOrder: sortOrder || 0,
+            isActive: (typeof isActive === 'boolean' ? isActive : true),
+        });
+
+        return res.status(201).json({ success: true, data: highlight });
+    } catch (error) {
+        console.error("Create Highlight Error:", error);
+        return res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+});
+
+//admin
+exports.getProductHighlightById = catchAsyncError(async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "Invalid ID." });
+        }
+
+        const highlight = await ProductHighlight.findById(id).populate('productId');
+
+        if (!highlight) {
+            return res.status(404).json({ success: false, message: "Highlight not found." });
+        }
+
+        return res.json({ success: true, data: highlight });
+    } catch (error) {
+        console.error("Get Highlight by ID Error:", error);
+        return res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+});
+
+//admin
+exports.updateProductHighlight = catchAsyncError(async (req, res) => {
+    try {
+        const { id } = req.params;
+       if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "Invalid ID." });
+        }
+
+        const updateData = { ...req.body };
+
+         const updated = await ProductHighlight.findByIdAndUpdate(id, updateData, {
+            new: true,
+            runValidators: true
+        });
+
+        if (!updated) {
+            return res.status(404).json({ success: false, message: "Highlight not found." });
+        }
+
+        return res.json({ success: true, data: updated });
+    } catch (error) {
+        console.error("Update Highlight Error:", error);
+        return res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+});
+
+//admin
+exports.toggleProductHighlightStatus = catchAsyncError(async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "Invalid ID." });
+        }
+
+        const highlight = await ProductHighlight.findById(id);
+        if (!highlight) {
+            return res.status(404).json({ success: false, message: "Highlight not found." });
+        }
+
+        highlight.isActive = !highlight.isActive;
+        await highlight.save();
+
+        return res.json({ success: true, message: `Highlight ${highlight.isActive ? 'activated' : 'deactivated'}`, data: highlight });
+    } catch (error) {
+        console.error("Toggle Highlight Status Error:", error);
+        return res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+});
+
+//admin
+exports.getAllProductHighlights = catchAsyncError(async (req, res) => {
+    try {
+        const highlights = await ProductHighlight
+            .find()
+            .sort({ sortOrder: 1 })
+            .populate('productId');
+        if (!highlights || highlights.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No highlights found",
+            });
+        }
+
+        return res.json({
+            success: true,
+            count: highlights.length,
+            data: highlights
+        });
+    } catch (error) {
+        console.error("Get Highlighted Products Error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message
+        });
+    }
+});
+
+//admin
+exports.getActiveProductHighlights = catchAsyncError(async (req, res) => {
+    try {
+        const highlights = await ProductHighlight.find({ isActive: true })
+            .populate('productId', 'productName image')
+            .sort({ sortOrder: 1 });
+
+        return res.json({ success: true, count: highlights.length, data: highlights });
+    } catch (error) {
+        console.error("Get Active Highlights Error:", error);
+        return res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+});
+
+//user
+exports.getActiveHighlightedProducts = catchAsyncError(async (req, res) => {
+  const { category } = req.query;
+
+  const allowedCategories = ['trending', 'favourite'];
+  if (!allowedCategories.includes(category)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid highlight category. Allowed: trending, favourite',
+    });
+  }
+
+  const highlights = await ProductHighlight.find({
+    category,
+    isActive: true,
+  })
+    .sort({ sortOrder: 1 }) // sort by custom sortOrder if needed
+    .populate({
+      path: 'productId',
+      match: { isActive: true }, // ensure only active products are included
+      select: '-__v', // optional: exclude __v or choose fields
+    });
+
+  // Filter out any highlight entry with no populated product (i.e., product was inactive or deleted)
+  const activeProducts = highlights
+    .filter((h) => h.productId) // product was populated and active
+    .map((h) => h.productId);
+
+  return res.status(200).json({
+    success: true,
+    count: activeProducts.length,
+    data: activeProducts,
+  });
+});
 
 exports.highlightUpload = catchAsyncError(async (req, res, next) => {
     try {
         const { productId, category, sortOrder, isActive } = req.body;
-  
+
         const highlight = new ProductHighlight({ productId, category, sortOrder, isActive });
         await highlight.save();
         res.status(200).send({

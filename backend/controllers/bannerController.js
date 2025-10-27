@@ -1,6 +1,200 @@
 const catchAsyncError = require('../middlewares/catchAsyncError');
 const Banner = require('../models/bannerModel');
+const Slider = require('../models/bannerModel');
 const ErrorHandler = require('../utils/errorHandler');
+
+//admin
+exports.createSlider = catchAsyncError(async (req, res) => {
+    try {
+  
+        const { name, cta, link, position, sortOrder, isActive } = req.body;
+
+        if (!name || !cta || !link || !position || !req.file) {
+            return res.status(400).json({ success: false, message: "All fields are required" });
+        }
+
+        const BASE_URL = process.env.NODE_ENV === "production"
+            ? process.env.BACKEND_URL
+            : `${req.protocol}://${req.get("host")}`;
+
+        const imagePath = `${BASE_URL}/uploads/slider/${req.file.filename}`;
+
+        const newSlider = await Slider.create({
+            name,
+            cta,
+            link,
+            position,
+            image: imagePath,
+            sortOrder,
+            isActive,
+        });
+
+        res.status(201).json({ success: true, message: "Slider created successfully", data: newSlider });
+    } catch (error) {
+        console.error("Create Slider Error:", error);
+        res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+});
+
+//admin
+exports.getSlider = catchAsyncError(async (req, res) => {
+    try {
+
+        const { id } = req.params;
+        const slider = await Slider.findById(id);
+        if (!slider) {
+            return res.status(404).json({
+                success: false,
+                message: "Slider not found",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Slider fetched successfully",
+            data: slider,
+        });
+    } catch (error) {
+        console.error("❌ Get Slider By ID Error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Server error while fetching slider",
+            error: error.message,
+        });
+    }
+});
+
+//admin
+exports.getAllSliders = catchAsyncError(async (req, res) => {
+    try {
+         const sliders = await Slider.find().sort({ sortOrder: 1 });
+
+        if (!sliders.length) {
+            return res.status(404).json({
+                success: false,
+                message: "No sliders found",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            count: sliders.length,
+            message: "Sliders fetched successfully",
+            data: sliders,
+        });
+    } catch (error) {
+        console.error("Get Sliders Error:", error);
+        res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+});
+
+//admin
+exports.updateSlider =  catchAsyncError(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, cta, link, position, sortOrder, isActive } = req.body;
+
+        let slider = await Slider.findById(id);
+        if (!slider) {
+            return res.status(404).json({ success: false, message: "Slider not found" });
+        }
+
+        const BASE_URL = process.env.NODE_ENV === "production"
+            ? process.env.BACKEND_URL
+            : `${req.protocol}://${req.get("host")}`;
+
+        if (req.file) {
+            slider.image = `${BASE_URL}/uploads/sliders/${req.file.filename}`;
+        }
+
+        slider.name = name;
+        slider.cta = cta;
+        slider.link = link;
+        slider.position = position;
+        slider.sortOrder = sortOrder;
+        slider.isActive = isActive;
+
+        await slider.save();
+
+        res.status(200).json({ success: true, message: "Slider updated successfully", data: slider });
+    } catch (error) {
+        console.error("Update Slider Error:", error);
+        res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+});
+
+//admin
+exports.deleteSlider =  catchAsyncError(async (req, res) => {
+    try {
+
+        const { id } = req.params;
+        const slider = await Slider.findByIdAndDelete(id);
+        if (!slider) {
+            return res.status(404).json({ success: false, message: "Slider not found" });
+        }
+        res.status(200).json({ success: true, message: "Slider deleted successfully" });
+    } catch (error) {
+        console.error("Delete Slider Error:", error);
+        res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+});
+
+//admin
+exports.toggleSliderActive = catchAsyncError(async (req, res) => {
+    try {
+
+        const { id } = req.params;
+        const slider = await Slider.findById(id);
+
+        if (!slider) {
+            return res.status(404).json({ success: false, message: "Slider not found" });
+        }
+
+        slider.isActive = !slider.isActive;
+
+        await slider.save();
+
+        return res.status(200).json({
+            success: true,
+            message: `slider "${slider.name}" is now ${slider.isActive ? 'active' : 'inactive'}`,
+            slider
+        });
+
+    } catch (error) {
+        console.error("Toggle product active error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+});
+
+
+//user
+exports.getActiveSliders = catchAsyncError(async (req, res) => {
+    try {
+        // Fetch sliders where isActive is true
+        const sliders = await Slider.find({ isActive: true }).sort({ sortOrder: 1 });
+
+        if (!sliders.length) {
+            return res.status(404).json({
+                success: false,
+                message: "No active sliders found",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            count: sliders.length,
+            message: "Active sliders fetched successfully",
+            data: sliders,
+        });
+    } catch (error) {
+        console.error("Get Active Sliders Error:", error);
+        res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+});
 
 exports.bannerUpload = catchAsyncError(async (req, res, next) => {
     const files = req.files;

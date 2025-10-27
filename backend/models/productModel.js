@@ -6,10 +6,6 @@ const specificationSchema = new mongoose.Schema({
     value: String,
 });
 
-const descriptionSchema = new mongoose.Schema({
-    description: String
-});
-
 const seoSchema = new mongoose.Schema({
     metaTitle: { type: String },
     metaDescription: { type: String },
@@ -21,17 +17,19 @@ const productSchema = new mongoose.Schema({
     productName: { type: String, required: true },
     slug: { type: String, unique: true, index: true },
     category: { type: String, required: true },
-    subCategory: { type: String, required: true },
-    descriptions: [{ type: String }],
-    highlights: [{ type: String }],
+    subCategory: { type: String, default: null },
+    description: { type: String },
+    features: [{ type: String }],
+    whyChoose: [{ type: String }],
+    instructions: [{ type: String }],
     overview: { type: String },
     specifications: [specificationSchema],
-    stock: { type: Number, default: true },
-    deliveryDays: { type: Number, required: true },
-    price: { type: Number, required: true },
+    stock: { type: Number },
+    deliveryDays: { type: Number },
+    price: { type: Number },
     oldPrice: { type: Number },
     image: { type: String },
-    brand: { type: String, default: 'Brand not specified' },
+    brand: { type: String},
     variants: [
         {
             color: String,

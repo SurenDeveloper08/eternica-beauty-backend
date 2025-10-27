@@ -7,6 +7,57 @@ const ErrorHandler = require('../utils/errorHandler');
 const moment = require('moment');
 const { sendEmail } = require('../utils/email');
 const { loginUser } = require('./authController');
+const { sendCustomerEmail, sendCompanyEmail } = require('../services/emailService')
+//user
+exports.newOrder = catchAsyncError(async (req, res, next) => {
+    try {
+        const { cartItems, name, email, phone, address } = req.body;
+
+        const today = moment().format('DDMMYYYY'); // for orderNumber
+
+        // Step 1: Get today's counter
+        let counter = await OrderCounter.findOne({ date: today });
+
+        if (!counter) {
+            counter = await OrderCounter.create({ date: today, count: 1 });
+
+        } else {
+            counter.count += 1;
+            await counter.save();
+        }
+
+        // Step 2: Generate order number
+        const orderNumber = `#ORD${today}${counter.count.toString().padStart(2, '0')}`;
+
+        const savedOrder = new Order({
+            orderNumber,
+            items: cartItems,
+            customerName: name,
+            customerEmail: email,
+            customerPhone: phone,
+            shippingAddress: address,
+            status: "Pending",
+            createdAt: new Date(),
+        });
+
+        await Promise.all([
+            sendCustomerEmail(savedOrder, name, email),
+            sendCompanyEmail(savedOrder, name, email, phone, address),
+        ]);
+
+        res.status(200).json({
+            success: true,
+            order: savedOrder
+        })
+
+    } catch (error) {
+        console.error("Order creation error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to place order. Please try again later.",
+        });
+    }
+})
 
 async function updateStock(slug, quantity, color = null, size = null) {
     const product = await Product.findOne({ slug });
@@ -273,36 +324,6 @@ exports.updateOrder = catchAsyncError(async (req, res, next) => {
         message: 'Order status updated and emails sent',
     });
 });
-
-//Create New Order - api/v1/order/new
-exports.newOrder = catchAsyncError(async (req, res, next) => {
-    const {
-        orderItems,
-        shippingInfo,
-        itemsPrice,
-        taxPrice,
-        shippingPrice,
-        totalPrice,
-        paymentInfo
-    } = req.body;
-
-    const order = await Order.create({
-        orderItems,
-        shippingInfo,
-        itemsPrice,
-        taxPrice,
-        shippingPrice,
-        totalPrice,
-        paymentInfo,
-        paidAt: Date.now(),
-        user: req.user.id
-    })
-
-    res.status(200).json({
-        success: true,
-        order
-    })
-})
 
 //Get Single Order - api/v1/order/:id
 exports.getSingleOrder = catchAsyncError(async (req, res, next) => {

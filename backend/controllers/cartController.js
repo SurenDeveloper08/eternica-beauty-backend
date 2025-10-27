@@ -298,21 +298,17 @@ exports.mergeGuestCart = catchAsyncError(async (req, res, next) => {
 
 exports.validateCart = async (req, res, next) => {
     try {
-
-        console.log('entered');
-
         let cart = [];
 
         const currency = req.query.currency?.toUpperCase() || 'AED';
-        const country = req.query.country?.toUpperCase(); // may be empty
+        const country = req.query.country?.toUpperCase();
 
         if (req.user) {
             // Logged-in user
             const user = await User.findById(req.user._id);
             cart = user?.cart || [];
         } else {
-            console.log('entered guest');
-            // Guest user
+             // Guest user
             try {
                cart = req.body?.cart || [];
 
@@ -320,8 +316,7 @@ exports.validateCart = async (req, res, next) => {
                 cart = [];
             }
         }
-        console.log(cart);
-        if (!cart.length) {
+       if (!cart.length) {
             return res.status(200).json({
                 success: true,
                 count: 0,

@@ -15,7 +15,7 @@ const upload = multer({storage: multer.diskStorage({
         cb(null, file.originalname)
     }
 }) })
-router.route('/order/new').post(isAuthenticatedUser,newOrder);
+// router.route('/order/new').post(isAuthenticatedUser,newOrder);
 router.route('/order/create').post(isAuthenticatedUser,createOrder);
 router.route('/myorders/get').get(isAuthenticatedUser,getMyOrders);
 // router.route('/order/:id').get(isAuthenticatedUser,getSingleOrder);
@@ -29,5 +29,9 @@ router.route('/admin/order/:id').put(isAuthenticatedUser, authorizeRoles('admin'
                         .delete(isAuthenticatedUser, authorizeRoles('admin'), deleteOrder)
 
 router.route('/admin/orders/get').get(isAuthenticatedUser, authorizeRoles('admin'), getAllOrder)
+
+// user
+router.route('/checkout').post(
+    newOrder);
 
 module.exports = router;

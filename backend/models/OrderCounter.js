@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const orderCounterSchema = new mongoose.Schema({
   date: {
-    type: String, // Format: 'DDMMYYYY'
+    type: String, 
     required: true,
     unique: true
   },
