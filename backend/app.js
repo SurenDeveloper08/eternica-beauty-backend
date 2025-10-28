@@ -9,7 +9,7 @@ const cors = require('cors');
 dotenv.config({ path: path.join(__dirname, "config/config.env") });
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://eternicabeauty.com',
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
 }));
 
@@ -65,9 +65,7 @@ app.use('/', sitemap);
 
 if (process.env.NODE_ENV === "production") {
   const buildPath = path.join(__dirname, '../frontend/build');
-
   app.use(express.static(buildPath));
-
   app.get(/^\/(?!api).*/, (req, res) => {
     res.sendFile(path.join(buildPath, 'index.html'));
   });

@@ -21,7 +21,7 @@ exports.getAdminCategories = catchAsyncError(async (req, res) => {
 
 //admin
 exports.createCategory = catchAsyncError(async (req, res, next) => {
-  const { name, description = '', isActive, sortOrder } = req.body;
+  const { name, title, description = '', isActive, sortOrder } = req.body;
 
   if (!name || !name.trim()) {
     return res.status(400).json({
@@ -40,6 +40,7 @@ exports.createCategory = catchAsyncError(async (req, res, next) => {
     ? `${BASE_URL}/uploads/category/${req.file.filename}`
     : '';
 
+
   const seo = {
     metaTitle: req.body.metaTitle?.trim() || '',
     metaDescription: req.body.metaDescription?.trim() || '',
@@ -49,6 +50,7 @@ exports.createCategory = catchAsyncError(async (req, res, next) => {
 
   const categoryData = {
     name: name.trim(),
+    title: title?.trim() || name.trim(),
     description: description.trim(),
     slug,
     image,
