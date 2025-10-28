@@ -516,7 +516,6 @@ exports.getActiveSearchProducts = catchAsyncError(async (req, res, next) => {
 exports.getProduct = catchAsyncError(async (req, res, next) => {
     const { productId } = req.params;
     const data = await Product.findOne({ slug: productId });
-console.log(data);
 
     if (!data) {
         return next(new ErrorHandler('Product not found', 400));
