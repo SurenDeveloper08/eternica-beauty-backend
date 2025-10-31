@@ -13,7 +13,7 @@ const { log } = require('console');
 
 //admin
 
-exports.createProduct = catchAsyncError(async (req, res, next) => {
+exports.create1Product = catchAsyncError(async (req, res, next) => {
 
     const BASE_URL = process.env.NODE_ENV === "production"
         ? process.env.BACKEND_URL
@@ -138,6 +138,137 @@ exports.createProduct = catchAsyncError(async (req, res, next) => {
         sellGlobally: req.body.sellGlobally === 'false' ? false : true,
         restrictedCountries: safeParse(req.body.restrictedCountries || '[]'),
         allowedCountries: safeParse(req.body.allowedCountries || '[]'),
+        seo
+    };
+
+    const product = await Product.create(productData);
+
+    res.status(201).json({
+        success: true,
+        product,
+    });
+});
+
+exports.createProduct = catchAsyncError(async (req, res, next) => {
+    const BASE_URL = process.env.NODE_ENV === "production"
+        ? process.env.BACKEND_URL
+        : `${req.protocol}://${req.get("host")}`;
+
+    // Collect all uploaded files
+    const allFiles = [
+        ...(req.files?.image || []),
+        ...(req.files?.images || []),
+    ];
+
+    const filePaths = allFiles.map(file => file.path);
+    const resizedFilenames = await resizeImages(filePaths, true);
+
+    allFiles.forEach((file, i) => {
+        file.filename = resizedFilenames[i].resizedFilename;
+        file.longFilename = resizedFilenames[i].longFilename;
+    });
+
+    // Set main image
+    let mainImage = '';
+    if (req.files?.image?.length > 0) {
+        const file = req.files.image[0];
+        mainImage = `${BASE_URL}/uploads/product/${file.filename}`;
+    }
+
+    // Set gallery images
+    let allImages = [];
+    const galleryFiles = req.files?.images || [];
+    galleryFiles.forEach(file => {
+        allImages.push({
+            image: `${BASE_URL}/uploads/product/${file.filename}`,
+            longImage: `${BASE_URL}/uploads/product/${file.longFilename}`,
+        });
+    });
+
+    // 🔸 Category & Subcategory validation
+    const categorySlug = JSON.parse(req.body.category || "{}");
+    const subCategorySlug = req.body.subCategory ? JSON.parse(req.body.subCategory) : null;
+
+    const validCategory = await Category.findOne({ slug: categorySlug });
+    if (!validCategory) {
+        return res.status(400).json({ success: false, message: 'Category not found' });
+    }
+
+    let validSubCategory = null;
+    if (subCategorySlug) {
+        const subExists = validCategory.subcategories.some(
+            sub => sub.slug === subCategorySlug
+        );
+
+        if (!subExists) {
+            return res.status(400).json({
+                success: false,
+                message: `Subcategory "${subCategorySlug}" not found in selected category "${validCategory.name}".`
+            });
+        }
+        validSubCategory = subCategorySlug;
+    }
+
+    // ✅ Ensure numeric fields are valid numbers
+    ['stock', 'price', 'oldPrice', 'deliveryDays'].forEach(field => {
+        const value = req.body[field];
+        req.body[field] = value && !isNaN(Number(value)) ? Number(value) : 0;
+    });
+
+    // Safe JSON parse
+    const safeParse = (data) => {
+        try {
+            return typeof data === 'string' ? JSON.parse(data) : data;
+        } catch {
+            return null;
+        }
+    };
+
+    const productName = safeParse(req.body?.productName) || req.body?.productName;
+    const slug = slugify(productName ? productName.trim() : "product-name", { lower: true, strict: true });
+
+    const existingProduct = await Product.findOne({ slug });
+    if (existingProduct) {
+        return res.status(400).json({
+            success: false,
+            message: `Product with the name "${productName}" already exists.`,
+        });
+    }
+
+    const description = safeParse(req.body?.description) || req.body?.description;
+    const features = safeParse(req.body?.features) || [];
+    const whyChoose = safeParse(req.body?.whyChoose) || [];
+    const instructions = safeParse(req.body?.instructions) || [];
+    const specifications = safeParse(req.body?.specifications || '[]') || [];
+
+    const seo = {
+        metaTitle: req.body.seo?.metaTitle || '',
+        metaDescription: req.body.seo?.metaDescription || '',
+        metaKeywords: req.body.seo?.metaKeywords || '',
+        canonicalUrl: req.body.seo?.canonicalUrl || ''
+    };
+
+    const productData = {
+        productName,
+        slug,
+        brand: req.body.brand,
+        category: validCategory.slug,
+        subCategory: validSubCategory || null,
+        overview: req.body.overview,
+        stock: req.body.stock,
+        deliveryDays: req.body.deliveryDays,
+        price: req.body.price,
+        oldPrice: req.body.oldPrice,
+        description,
+        features,
+        whyChoose,
+        instructions,
+        specifications,
+        image: mainImage || allImages[0]?.image || '',
+        images: allImages,
+        sellGlobally: req.body.sellGlobally === 'false' ? false : true,
+        restrictedCountries: safeParse(req.body.restrictedCountries || '[]') || [],
+        allowedCountries: safeParse(req.body.allowedCountries || '[]') || [],
         seo
     };
 
@@ -511,6 +642,87 @@ exports.getActiveSearchProducts = catchAsyncError(async (req, res, next) => {
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
+});
+
+//user
+exports.getActiveRelatedProducts = catchAsyncError(async (req, res, next) => {
+  try {
+    const { category: categorySlug, subcategory: subCategorySlug, slug: productSlug } = req.query;
+
+    if (!categorySlug && !subCategorySlug) {
+      return res.status(400).json({ message: 'Category or Subcategory parameter is required' });
+    }
+
+    let categoryDoc;
+    let subCategoryDoc;
+    let filter = {};
+
+    if (subCategorySlug) {
+      categoryDoc = await Category.findOne({ "subcategories.slug": subCategorySlug }).lean();
+
+      if (!categoryDoc) {
+        return res.status(404).json({ message: 'Subcategory not found' });
+      }
+
+      subCategoryDoc = categoryDoc.subcategories.find(sc => sc.slug === subCategorySlug);
+
+      if (!subCategoryDoc) {
+        return res.status(404).json({ message: 'Subcategory not found inside the category' });
+      }
+
+      filter.subCategory = subCategorySlug;
+    } else if (categorySlug) {
+      categoryDoc = await Category.findOne({ slug: categorySlug }).lean();
+
+      if (!categoryDoc) {
+        return res.status(404).json({ message: 'Category not found' });
+      }
+
+      filter.category = categorySlug;
+    }
+
+    // Exclude the current product if productSlug is passed
+    if (productSlug) {
+      filter.slug = { $ne: productSlug };
+    }
+
+    // Fetch products by filter
+    const products = await Product.find(filter)
+      .select('productName slug category subCategory price image seo')
+      .lean();
+
+    // Compose meta info
+    let metaInfo = {};
+
+    if (subCategoryDoc) {
+      metaInfo = {
+        title: subCategoryDoc.title || subCategoryDoc.name,
+        description: subCategoryDoc.description,
+        image: subCategoryDoc.image,
+        seo: subCategoryDoc.seo,
+        category: {
+          title: categoryDoc.name,
+          slug: categoryDoc.slug
+        }
+      };
+    } else if (categoryDoc) {
+      metaInfo = {
+        title: categoryDoc.title || categoryDoc.name,
+        description: categoryDoc.description,
+        image: categoryDoc.image,
+        seo: categoryDoc.seo,
+      };
+    }
+
+    res.json({
+      meta: metaInfo,
+      products,
+    });
+
+  } catch (error) {
+    console.error('Error fetching products by category/subcategory:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 exports.getProduct = catchAsyncError(async (req, res, next) => {

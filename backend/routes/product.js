@@ -10,10 +10,10 @@ const {
   getActiveCategoryProducts,
   getActiveSearchProducts,
   getProduct,
+  getActiveRelatedProducts,
 
 } = require('../controllers/productController');
 const router = express.Router();
-const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate');
 const multer = require('multer');
 const path = require('path')
 
@@ -77,9 +77,12 @@ router.route('/admin/product/status/:productId').put(
 //user
 router.route('/product/:productId').get(
   getProduct);
-
+//user
 router.route('/products').get(
   getActiveCategoryProducts);
+  //user
+  router.route('/products/by-category').get(
+  getActiveRelatedProducts);
 
 router.route('/products/search').get(getActiveSearchProducts);
 module.exports = router;
