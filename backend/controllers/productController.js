@@ -1,441 +1,236 @@
-const Product = require('../models/productModel');
-const Category = require('../models/categoryModel');
-const ErrorHandler = require('../utils/errorHandler')
-const catchAsyncError = require('../middlewares/catchAsyncError')
-const APIFeatures = require('../utils/apiFeatures');
-const slugify = require('slugify');
-const fs = require('fs');
-const path = require('path');
-const resizeImages = require('../utils/resizeImages'); // adjust path as needed
-const { convertProductPrices } = require('../utils/convertProductPrices');
-const mongoose = require("mongoose");
-const { log } = require('console');
+// controllers/productController.js
 
-//admin
+const Product = require("../models/productModel");
+const Category = require("../models/categoryModel");
+const SubCategory = require("../models/SubCategory");
+const Brand = require("../models/brandModel");
 
-exports.create1Product = catchAsyncError(async (req, res, next) => {
+// =====================================
+// CREATE PRODUCT
+// =====================================
 
-    const BASE_URL = process.env.NODE_ENV === "production"
-        ? process.env.BACKEND_URL
-        : `${req.protocol}://${req.get("host")}`;
-
-    const allFiles = [
-        ...(req.files?.image || []),
-        ...(req.files?.images || []),
-    ];
-
-    const filePaths = allFiles.map(file => file.path);
-    const resizedFilenames = await resizeImages(filePaths, true);
-
-    allFiles.forEach((file, i) => {
-        file.filename = resizedFilenames[i].resizedFilename;
-        file.longFilename = resizedFilenames[i].longFilename;
-    });
-
-    let allImages = [];
-    let mainImage = '';
-
-    if (req.files?.image?.length > 0) {
-        const file = req.files.image[0];
-        mainImage = `${BASE_URL}/uploads/product/${file.filename}`;
-    }
-
-    const galleryFiles = req.files?.images || [];
-    galleryFiles.forEach(file => {
-        allImages.push({
-            image: `${BASE_URL}/uploads/product/${file.filename}`,
-            longImage: `${BASE_URL}/uploads/product/${file.longFilename}`,
-        });
-    });
-
-    // 🔸 Category & (Optional) Subcategory
-    const categorySlug = JSON.parse(req.body.category || "{}");
-    const subCategorySlug = req.body.subCategory ? JSON.parse(req.body.subCategory) : null;
-
-    const validCategory = await Category.findOne({ slug: categorySlug });
-    if (!validCategory) {
-        return res.status(400).json({ success: false, message: 'Category not found' });
-    }
-
-    let validSubCategory = null;
-
-    if (subCategorySlug) {
-        const subExists = validCategory.subcategories.some(
-            sub => sub.slug === subCategorySlug
-        );
-
-        if (!subExists) {
-            return res.status(400).json({
-                success: false,
-                message: `Subcategory "${subCategorySlug}" not found in selected category "${validCategory.name}".`
-            });
-        }
-        validSubCategory = subCategorySlug;
-    }
-    //  Set back in body
-    req.body.category = validCategory.slug;
-    req.body.subCategory = validSubCategory?.slug || null;
-
-    //  Number fields
-    ['stock', 'price', 'oldPrice', 'deliveryDays'].forEach(field => {
-        if (req.body[field] !== undefined && req.body[field] !== "") {
-            req.body[field] = Number(req.body[field]);
-        } else {
-            req.body[field] = undefined;
-        }
-    });
-
-    const safeParse = (data) => {
-        try {
-            return typeof data === 'string' ? JSON.parse(data) : data;
-        } catch {
-            return null;
-        }
-    };
-
-    const productName = safeParse(req.body?.productName);
-    const slug = slugify(productName ? productName.trim() : "product-name", { lower: true, strict: true });
-
-    const existingProduct = await Product.findOne({ slug });
-    if (existingProduct) {
-        return res.status(400).json({
-            success: false,
-            message: `Product with the name "${productName}" already exists.`,
-        });
-    }
-
-    const description = safeParse(req.body?.description);
-    const features = safeParse(req.body.features);
-    const whyChoose = safeParse(req.body.whyChoose);
-    const instructions = safeParse(req.body.instructions);
-    const specifications = safeParse(req.body.specifications || '[]');
-
-    const seo = {
-        metaTitle: req.body.seo?.metaTitle || '',
-        metaDescription: req.body.seo?.metaDescription || '',
-        metaKeywords: req.body.seo?.metaKeywords || '',
-        canonicalUrl: req.body.seo?.canonicalUrl || ''
-    };
-
-    const productData = {
-        productName,
-        slug,
-        brand: req.body.brand,
-        category: req.body.category,
-        subCategory: req.body.subCategory, // could be null
-        overview: req.body.overview,
-        stock: req.body.stock,
-        deliveryDays: req.body.deliveryDays,
-        price: req.body.price,
-        oldPrice: req.body.oldPrice,
-        description,
-        features,
-        whyChoose,
-        instructions,
-        specifications,
-        image: mainImage || allImages[0]?.image || '',
-        images: allImages,
-        sellGlobally: req.body.sellGlobally === 'false' ? false : true,
-        restrictedCountries: safeParse(req.body.restrictedCountries || '[]'),
-        allowedCountries: safeParse(req.body.allowedCountries || '[]'),
-        seo
-    };
-
-    const product = await Product.create(productData);
-
-    res.status(201).json({
-        success: true,
-        product,
-    });
-});
-
-exports.createProduct = catchAsyncError(async (req, res, next) => {
-    const BASE_URL = process.env.NODE_ENV === "production"
-        ? process.env.BACKEND_URL
-        : `${req.protocol}://${req.get("host")}`;
-
-    // Collect all uploaded files
-    const allFiles = [
-        ...(req.files?.image || []),
-        ...(req.files?.images || []),
-    ];
-
-    const filePaths = allFiles.map(file => file.path);
-    const resizedFilenames = await resizeImages(filePaths, true);
-
-    allFiles.forEach((file, i) => {
-        file.filename = resizedFilenames[i].resizedFilename;
-        file.longFilename = resizedFilenames[i].longFilename;
-    });
-
-    // Set main image
-    let mainImage = '';
-    if (req.files?.image?.length > 0) {
-        const file = req.files.image[0];
-        mainImage = `${BASE_URL}/uploads/product/${file.filename}`;
-    }
-
-    // Set gallery images
-    let allImages = [];
-    const galleryFiles = req.files?.images || [];
-    galleryFiles.forEach(file => {
-        allImages.push({
-            image: `${BASE_URL}/uploads/product/${file.filename}`,
-            longImage: `${BASE_URL}/uploads/product/${file.longFilename}`,
-        });
-    });
-
-    // 🔸 Category & Subcategory validation
-    const categorySlug = JSON.parse(req.body.category || "{}");
-    const subCategorySlug = req.body.subCategory ? JSON.parse(req.body.subCategory) : null;
-
-    const validCategory = await Category.findOne({ slug: categorySlug });
-    if (!validCategory) {
-        return res.status(400).json({ success: false, message: 'Category not found' });
-    }
-
-    let validSubCategory = null;
-    if (subCategorySlug) {
-        const subExists = validCategory.subcategories.some(
-            sub => sub.slug === subCategorySlug
-        );
-
-        if (!subExists) {
-            return res.status(400).json({
-                success: false,
-                message: `Subcategory "${subCategorySlug}" not found in selected category "${validCategory.name}".`
-            });
-        }
-        validSubCategory = subCategorySlug;
-    }
-
-    // ✅ Ensure numeric fields are valid numbers
-    ['stock', 'price', 'oldPrice', 'deliveryDays'].forEach(field => {
-        const value = req.body[field];
-        req.body[field] = value && !isNaN(Number(value)) ? Number(value) : 0;
-    });
-
-    // Safe JSON parse
-    const safeParse = (data) => {
-        try {
-            return typeof data === 'string' ? JSON.parse(data) : data;
-        } catch {
-            return null;
-        }
-    };
-
-    const productName = safeParse(req.body?.productName) || req.body?.productName;
-    const slug = slugify(productName ? productName.trim() : "product-name", { lower: true, strict: true });
-
-    const existingProduct = await Product.findOne({ slug });
-    if (existingProduct) {
-        return res.status(400).json({
-            success: false,
-            message: `Product with the name "${productName}" already exists.`,
-        });
-    }
-
-    const description = safeParse(req.body?.description) || req.body?.description;
-    const features = safeParse(req.body?.features) || [];
-    const whyChoose = safeParse(req.body?.whyChoose) || [];
-    const instructions = safeParse(req.body?.instructions) || [];
-    const specifications = safeParse(req.body?.specifications || '[]') || [];
-
-    const seo = {
-        metaTitle: req.body.seo?.metaTitle || '',
-        metaDescription: req.body.seo?.metaDescription || '',
-        metaKeywords: req.body.seo?.metaKeywords || '',
-        canonicalUrl: req.body.seo?.canonicalUrl || ''
-    };
-
-    const productData = {
-        productName,
-        slug,
-        brand: req.body.brand,
-        category: validCategory.slug,
-        subCategory: validSubCategory || null,
-        overview: req.body.overview,
-        stock: req.body.stock,
-        deliveryDays: req.body.deliveryDays,
-        price: req.body.price,
-        oldPrice: req.body.oldPrice,
-        description,
-        features,
-        whyChoose,
-        instructions,
-        specifications,
-        image: mainImage || allImages[0]?.image || '',
-        images: allImages,
-        sellGlobally: req.body.sellGlobally === 'false' ? false : true,
-        restrictedCountries: safeParse(req.body.restrictedCountries || '[]') || [],
-        allowedCountries: safeParse(req.body.allowedCountries || '[]') || [],
-        seo
-    };
-
-    const product = await Product.create(productData);
-
-    res.status(201).json({
-        success: true,
-        product,
-    });
-});
-
-// Custom Validators (example)
-async function validateCategoryAndSubCategory(categorySlug, subCategorySlug) {
-    const foundCategory = await Category.findOne({ slug: categorySlug });
-    if (!foundCategory) return { validCategory: null, validSubCategory: null };
-
-    const foundSub = foundCategory.subcategories.find(
-        (sub) => sub.slug === subCategorySlug
-    );
-    return { validCategory: foundCategory, validSubCategory: foundSub };
-}
-
-//admin
-exports.getAdminProducts = catchAsyncError(async (req, res, next) => {
+exports.createProduct = async (req, res) => {
     try {
-        const data = await Product.find();
-        if (!data || data.length === 0) {
+        const BASE_URL =
+            process.env.NODE_ENV === "production"
+                ? process.env.BACKEND_URL
+                : `${req.protocol}://${req.get("host")}`;
+
+        // MAIN IMAGE
+        let image = "";
+
+        if (
+            req.files &&
+            req.files.image &&
+            req.files.image.length > 0
+        ) {
+            image = `${BASE_URL}/uploads/products/${req.files.image[0].filename}`;
+        }
+
+        // GALLERY IMAGES
+        let images = [];
+
+        if (
+            req.files &&
+            req.files.images
+        ) {
+            images = req.files.images.map(
+                (file) =>
+                    `${BASE_URL}/uploads/products/${file.filename}`
+            );
+        }
+
+        // CHECK CATEGORY
+        const category =
+            await Category.findById(
+                req.body.category
+            );
+
+        if (!category) {
             return res.status(404).json({
                 success: false,
-                message: "No products found"
+                message: "Category not found",
             });
         }
 
-        res.status(200).json({
+        // CHECK BRAND
+        const brand =
+            await Brand.findById(
+                req.body.brand
+            );
+
+        if (!brand) {
+            return res.status(404).json({
+                success: false,
+                message: "Brand not found",
+            });
+        }
+
+        // CHECK SUBCATEGORY
+        let subCategory = null;
+
+        if (req.body.subCategory) {
+            subCategory =
+                await SubCategory.findById(
+                    req.body.subCategory
+                );
+
+            if (!subCategory) {
+                return res.status(404).json({
+                    success: false,
+                    message:
+                        "Subcategory not found",
+                });
+            }
+        }
+
+        // CHECK SKU
+        const existingSKU =
+            await Product.findOne({
+                sku: req.body.sku
+                    .trim()
+                    .toUpperCase(),
+            });
+
+        if (existingSKU) {
+            return res.status(409).json({
+                success: false,
+                message: "SKU already exists",
+            });
+        }
+
+        // SPECIFICATIONS
+        let specifications = [];
+
+        if (req.body.specifications) {
+            specifications = JSON.parse(
+                req.body.specifications
+            );
+        }
+
+        // FEATURES
+        let features = [];
+
+        if (req.body.features) {
+            features = req.body.features
+                .split(",")
+                .map((item) => item.trim());
+        }
+
+        // TAGS
+        let tags = [];
+
+        if (req.body.tags) {
+            tags = req.body.tags
+                .split(",")
+                .map((item) =>
+                    item.trim().toLowerCase()
+                );
+        }
+
+        // CREATE PRODUCT
+        const product =
+            await Product.create({
+                name: req.body.name.trim(),
+
+                shortDescription:
+                    req.body.shortDescription || "",
+
+                description:
+                    req.body.description || "",
+
+                category:
+                    req.body.category,
+
+                subCategory:
+                    req.body.subCategory || null,
+
+                brand: req.body.brand,
+
+                sku: req.body.sku
+                    .trim()
+                    .toUpperCase(),
+
+                price: req.body.price,
+
+                salePrice:
+                    req.body.salePrice || 0,
+
+                stock:
+                    req.body.stock || 0,
+
+                lowStockAlert:
+                    req.body.lowStockAlert || 5,
+
+                image,
+
+                images,
+
+                specifications,
+
+                features,
+
+                tags,
+
+                isFeatured:
+                    req.body.isFeatured ===
+                    "true",
+
+                isActive:
+                    req.body.isActive ===
+                    "true",
+
+                seo: {
+                    metaTitle:
+                        req.body.metaTitle || "",
+
+                    metaDescription:
+                        req.body.metaDescription ||
+                        "",
+
+                    metaKeywords:
+                        req.body.metaKeywords
+                            ? req.body.metaKeywords
+                                .split(",")
+                                .map((item) =>
+                                    item.trim()
+                                )
+                            : [],
+
+                    canonicalUrl:
+                        req.body.canonicalUrl ||
+                        "",
+                },
+            });
+
+        res.status(201).json({
             success: true,
-            data
+            message:
+                "Product created successfully",
+            data: product,
         });
     } catch (error) {
-        console.error(error);
-        next(error); // Pass the error to global error handler
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
     }
-});
+};
 
-//admin
-exports.getAdminProduct = catchAsyncError(async (req, res, next) => {
-    const { productId } = req.params;
-    const data = await Product.findOne({ slug: productId });
+// =====================================
+// UPDATE PRODUCT
+// =====================================
 
-    if (!data) {
-        return next(new ErrorHandler('Product not found', 400));
-    }
-
-    res.status(201).json({
-        success: true,
-        data
-    })
-})
-
-//admin
-exports.updateProduct = catchAsyncError(async (req, res, next) => {
-    const { productId } = req.params;
-
-    // Find product by slug
-    const product = await Product.findOne({ slug: productId });
-    if (!product) {
-        return res.status(404).json({ success: false, message: "Product not found" });
-    }
-
-    const BASE_URL =
-        process.env.NODE_ENV === "production"
-            ? process.env.BACKEND_URL
-            : `${req.protocol}://${req.get("host")}`;
-
-    // Handle main and gallery images
-    const newMainImage = req.files?.image?.[0];
-    const newGalleryImages = req.files?.images || [];
-
-    const allFiles = [...(newMainImage ? [newMainImage] : []), ...newGalleryImages];
-    const resizedData = await resizeImages(allFiles.map(f => f.path), true);
-    allFiles.forEach((file, i) => {
-        file.filename = resizedData[i].resizedFilename;
-        file.longFilename = resizedData[i].longFilename;
-    });
-
-    if (newMainImage) {
-        // Remove old main image
-        if (product.image) {
-            const oldMainPath = path.join("uploads/product", path.basename(product.image));
-            if (fs.existsSync(oldMainPath)) fs.unlinkSync(oldMainPath);
-        }
-        product.image = `${BASE_URL}/uploads/product/${newMainImage.filename}`;
-    }
-
-    // Remove selected gallery images
-    const removedImages = JSON.parse(req.body.removedImages || "[]");
-    for (const imgUrl of removedImages) {
-        const filePath = path.join("uploads/product", path.basename(imgUrl));
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    }
-
-    // Update gallery images
-    const keptGallery = product.images.filter(img => !removedImages.includes(img.image));
-    const addedGallery = newGalleryImages.map(file => ({
-        image: `${BASE_URL}/uploads/product/${file.filename}`,
-        longImage: `${BASE_URL}/uploads/product/${file.longFilename}`,
-    }));
-    product.images = [...keptGallery, ...addedGallery];
-
-    // Handle numeric fields safely
-    const numericFields = ["price", "oldPrice", "stock", "deliveryDays"];
-    numericFields.forEach(field => {
-        if (req.body[field] !== undefined) {
-            let value = req.body[field];
-            if (value === "" || value === "null") {
-                product[field] = null;
-            } else {
-                const num = Number(value);
-                product[field] = isNaN(num) ? null : num;
-            }
-        }
-    });
-
-    // Update slug if product name changed
-    if (req.body.productName && req.body.productName !== product.productName) {
-        let baseSlug = slugify(req.body.productName, { lower: true, strict: true });
-        let slug = baseSlug;
-        let counter = 1;
-
-        while (await Product.exists({ slug, _id: { $ne: product._id } })) {
-            slug = `${baseSlug}-${counter}`;
-            counter++;
-        }
-        product.slug = slug;
-    }
-
-    // Update other fields
-    const jsonFields = [
-        "productName", "category", "subCategory", "description",
-        "overview", "features", "whyChoose", "instructions",
-        "specifications", "seo"
-    ];
-    jsonFields.forEach(field => {
-        if (req.body[field] !== undefined) {
-            try {
-                product[field] = JSON.parse(req.body[field]);
-            } catch {
-                product[field] = req.body[field];
-            }
-        }
-    });
-
-    await product.save();
-
-    res.status(200).json({
-        success: true,
-        message: "Product updated successfully",
-        product,
-    });
-});
-
-//admin
-exports.deleteProduct = catchAsyncError(async (req, res, next) => {
-
+exports.updateProduct = async (
+    req,
+    res
+) => {
     try {
-        const { productId } = req.params;
+        const product =
+            await Product.findById(
+                req.params.id
+            );
 
-        const product = await Product.findOne({ slug: productId });
         if (!product) {
             return res.status(404).json({
                 success: false,
@@ -443,298 +238,636 @@ exports.deleteProduct = catchAsyncError(async (req, res, next) => {
             });
         }
 
-        const deleteFileSafe = (url) => {
-            if (!url) return;
-            try {
-                const filename = path.basename(url);
-                const filePath = path.join(__dirname, "..", "uploads", "product", filename);
+        const BASE_URL =
+            process.env.NODE_ENV === "production"
+                ? process.env.BACKEND_URL
+                : `${req.protocol}://${req.get("host")}`;
 
-                if (fs.existsSync(filePath)) {
-                    fs.unlinkSync(filePath);
-                }
-            } catch (err) {
-                console.warn("⚠️ Image deletion failed:", err.message);
-            }
+        // MAIN IMAGE
+        let image = product.image;
+
+        if (
+            req.files &&
+            req.files.image &&
+            req.files.image.length > 0
+        ) {
+            image = `${BASE_URL}/uploads/products/${req.files.image[0].filename}`;
+        }
+
+        // GALLERY IMAGES
+        let images = product.images;
+
+        if (
+            req.files &&
+            req.files.images
+        ) {
+            images = req.files.images.map(
+                (file) =>
+                    `${BASE_URL}/uploads/products/${file.filename}`
+            );
+        }
+
+        // CHECK SKU
+        const existingSKU =
+            await Product.findOne({
+                sku: req.body.sku
+                    .trim()
+                    .toUpperCase(),
+                _id: {
+                    $ne: req.params.id,
+                },
+            });
+
+        if (existingSKU) {
+            return res.status(409).json({
+                success: false,
+                message: "SKU already exists",
+            });
+        }
+
+        // SPECIFICATIONS
+        let specifications = [];
+
+        if (req.body.specifications) {
+            specifications = JSON.parse(
+                req.body.specifications
+            );
+        }
+
+        // FEATURES
+        let features = [];
+
+        if (req.body.features) {
+            features = req.body.features
+                .split(",")
+                .map((item) => item.trim());
+        }
+
+        // TAGS
+        let tags = [];
+
+        if (req.body.tags) {
+            tags = req.body.tags
+                .split(",")
+                .map((item) =>
+                    item.trim().toLowerCase()
+                );
+        }
+
+        product.name =
+            req.body.name.trim();
+
+        product.shortDescription =
+            req.body.shortDescription || "";
+
+        product.description =
+            req.body.description || "";
+
+        product.category =
+            req.body.category;
+
+        product.subCategory =
+            req.body.subCategory || null;
+
+        product.brand =
+            req.body.brand;
+
+        product.sku = req.body.sku
+            .trim()
+            .toUpperCase();
+
+        product.price =
+            req.body.price;
+
+        product.salePrice =
+            req.body.salePrice || 0;
+
+        product.stock =
+            req.body.stock || 0;
+
+        product.lowStockAlert =
+            req.body.lowStockAlert || 5;
+
+        product.image = image;
+
+        product.images = images;
+
+        product.specifications =
+            specifications;
+
+        product.features = features;
+
+        product.tags = tags;
+
+        product.isFeatured =
+            req.body.isFeatured ===
+            "true";
+
+        product.isActive =
+            req.body.isActive ===
+            "true";
+
+        product.seo = {
+            metaTitle:
+                req.body.metaTitle || "",
+
+            metaDescription:
+                req.body.metaDescription ||
+                "",
+
+            metaKeywords:
+                req.body.metaKeywords
+                    ? req.body.metaKeywords
+                        .split(",")
+                        .map((item) =>
+                            item.trim()
+                        )
+                    : [],
+
+            canonicalUrl:
+                req.body.canonicalUrl || "",
         };
 
-        deleteFileSafe(product.image);
-
-        if (Array.isArray(product.images)) {
-            for (const img of product.images) {
-                deleteFileSafe(img.image);
-                deleteFileSafe(img.longImage);
-            }
-        }
-
-        await Product.deleteOne({ slug: productId });
-
-        return res.status(200).json({
-            success: true,
-            message: "deleted successfully",
-        });
-
-    } catch (error) {
-        console.error("Delete product error:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Something went wrong while deleting the product",
-            error: error.message,
-        });
-    }
-});
-
-//admin
-exports.toggleProductActive = catchAsyncError(async (req, res) => {
-    try {
-
-        const { productId } = req.params;
-
-        const product = await Product.findOne({ slug: productId });
-
-        if (!product) {
-            return res.status(404).json({ success: false, message: "Product not found" });
-        }
-
-        product.isActive = !product.isActive;
         await product.save();
 
-        return res.status(200).json({
+        res.status(200).json({
             success: true,
-            message: `product "${product.name}" is now ${product.isActive ? 'active' : 'inactive'}`,
-            product
+            message:
+                "Product updated successfully",
+            data: product,
         });
-
     } catch (error) {
-        console.error("Toggle product active error:", error);
-        return res.status(500).json({
+        res.status(500).json({
             success: false,
-            message: "Internal server error",
-            error: error.message
+            message: error.message,
         });
     }
-});
+};
 
-//admin
-exports.getAdminActiveProducts = catchAsyncError(async (req, res, next) => {
+// =====================================
+// GET ALL PRODUCTS ADMIN
+// =====================================
+
+exports.getAllProductsAdmin =
+    async (req, res) => {
+        try {
+            const products =
+                await Product.find()
+                    .populate(
+                        "category",
+                        "name slug"
+                    )
+                    .populate(
+                        "subCategory",
+                        "name slug"
+                    )
+                    .populate(
+                        "brand",
+                        "name slug"
+                    )
+                    .sort({
+                        createdAt: -1,
+                    });
+
+            res.status(200).json({
+                success: true,
+                count: products.length,
+                data: products,
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    };
+
+// =====================================
+// WEBSITE PRODUCTS
+// =====================================
+
+exports.getWebsiteProducts =
+    async (req, res) => {
+        try {
+            const products =
+                await Product.find({
+                    isActive: true,
+                })
+                    .populate(
+                        "category",
+                        "name slug"
+                    )
+                    .populate(
+                        "subCategory",
+                        "name slug"
+                    )
+                    .populate(
+                        "brand",
+                        "name slug"
+                    )
+                    .sort({
+                        createdAt: -1,
+                    });
+
+            res.status(200).json({
+                success: true,
+                count: products.length,
+                data: products,
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    };
+
+// =====================================
+// SINGLE PRODUCT
+// =====================================
+
+exports.getSingleProduct =
+    async (req, res) => {
+        try {
+            const product =
+                await Product.findById(
+                    req.params.id
+                )
+                    .populate(
+                        "category",
+                        "name slug"
+                    )
+                    .populate(
+                        "subCategory",
+                        "name slug"
+                    )
+                    .populate(
+                        "brand",
+                        "name slug"
+                    );
+
+            if (!product) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Product not found",
+                });
+            }
+
+            res.status(200).json({
+                success: true,
+                data: product,
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    };
+
+// =====================================
+// PRODUCT BY SLUG
+// =====================================
+
+exports.getProductBySlug = async (req, res) => {
     try {
+        console.log(req.params);
 
-        const data = await Product.find({ isActive: true });
-        if (!data || data.length === 0) {
+        const product = await Product.findOne({
+            slug: req.params.slug,
+            isActive: true,
+        })
+            .populate("category", "name slug")
+            .populate("subCategory", "name slug")
+            .populate("brand", "name slug");
+
+        if (!product) {
             return res.status(404).json({
                 success: false,
-                message: "No products found"
+                message: "Product not found",
             });
         }
 
         res.status(200).json({
             success: true,
-            data
+            product,
         });
     } catch (error) {
-        console.error(error);
-        next(error); // Pass the error to global error handler
-    }
-});
-
-//user
-exports.getActiveCategoryProducts = catchAsyncError(async (req, res, next) => {
-    try {
-        const { category: categorySlug, subcategory: subCategorySlug } = req.query;
-
-        if (!categorySlug && !subCategorySlug) {
-            return res.status(400).json({ message: 'Category or Subcategory parameter is required' });
-        }
-
-        let categoryDoc;
-        let subCategoryDoc;
-        let filter = {};
-
-        if (subCategorySlug) {
-            // Find the category document that contains this subcategory
-            categoryDoc = await Category.findOne({ "subcategories.slug": subCategorySlug }).lean();
-
-            if (!categoryDoc) {
-                return res.status(404).json({ message: 'Subcategory not found' });
-            }
-
-            // Find the subcategory inside the category document
-            subCategoryDoc = categoryDoc.subcategories.find(sc => sc.slug === subCategorySlug);
-
-            if (!subCategoryDoc) {
-                return res.status(404).json({ message: 'Subcategory not found inside the category' });
-            }
-
-            // Filter products by subCategory slug
-            filter.subCategory = subCategorySlug;
-
-        } else if (categorySlug) {
-            // Find category by slug
-            categoryDoc = await Category.findOne({ slug: categorySlug }).lean();
-
-            if (!categoryDoc) {
-                return res.status(404).json({ message: 'Category not found' });
-            }
-
-            // Filter products by category slug
-            filter.category = categorySlug;
-        }
-
-        // Fetch products by filter (category or subcategory slugs)
-        const products = await Product.find(filter)
-            .select('productName slug category subCategory price image seo')
-            .lean();
-
-        // Compose meta info
-        let metaInfo = {};
-        let category = {};
-
-
-        if (subCategoryDoc) {
-            // If subcategory requested, send subcategory meta + category title and slug
-
-            metaInfo = {
-                title: subCategoryDoc.title || subCategoryDoc.name,
-                description: subCategoryDoc.description,
-                image: subCategoryDoc.image,
-                seo: subCategoryDoc.seo,
-                category: {
-                    title: categoryDoc.name,
-                    slug: categoryDoc.slug
-                }
-            };
-        } else if (categoryDoc) {
-            // Category meta
-            metaInfo = {
-                title: categoryDoc.title || categoryDoc.name,
-                description: categoryDoc.description,
-                image: categoryDoc.image,
-                seo: categoryDoc.seo,
-            };
-        }
-
-        res.json({
-            meta: metaInfo,
-            products,
+        res.status(500).json({
+            success: false,
+            message: error.message,
         });
-
-    } catch (error) {
-        console.error('Error fetching products by category/subcategory:', error);
-        res.status(500).json({ message: 'Server error' });
     }
-});
-
-//user
-exports.getActiveSearchProducts = catchAsyncError(async (req, res, next) => {
+};
+exports.getSearchProducts = async (req, res) => {
     try {
-        const { q } = req.query;
+        const q = req.query.q || "";
+
         if (!q) {
-            return res.status(400).json({ message: "Search query is required" });
+            return res.json({
+                success: true,
+                products: [],
+            });
         }
-
-        const regex = new RegExp(q, 'i');
 
         const products = await Product.find({
             isActive: true,
-            productName: regex,
-        }).select('productName category subCategory slug image price');
+            name: {
+                $regex: q,
+                $options: "i",
+            },
+        })
+            .select("name slug image")
+            .limit(8)
+            .lean();
 
-        res.json({ data: products });
+        res.json({
+            success: true,
+            products,
+        });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
     }
-});
+};
+// =====================================
+// PRODUCTS BY CATEGORY
+// =====================================
 
-//user
-exports.getActiveRelatedProducts = catchAsyncError(async (req, res, next) => {
-  try {
-    const { category: categorySlug, subcategory: subCategorySlug, slug: productSlug } = req.query;
+exports.getProductsByCategory = async (req, res) => {
+    try {
+        const category = await Category.findOne({
+            slug: req.params.slug,
+            isActive: true,
+        }).select("name slug Title Description seo");
 
-    if (!categorySlug && !subCategorySlug) {
-      return res.status(400).json({ message: 'Category or Subcategory parameter is required' });
-    }
-
-    let categoryDoc;
-    let subCategoryDoc;
-    let filter = {};
-
-    if (subCategorySlug) {
-      categoryDoc = await Category.findOne({ "subcategories.slug": subCategorySlug }).lean();
-
-      if (!categoryDoc) {
-        return res.status(404).json({ message: 'Subcategory not found' });
-      }
-
-      subCategoryDoc = categoryDoc.subcategories.find(sc => sc.slug === subCategorySlug);
-
-      if (!subCategoryDoc) {
-        return res.status(404).json({ message: 'Subcategory not found inside the category' });
-      }
-
-      filter.subCategory = subCategorySlug;
-    } else if (categorySlug) {
-      categoryDoc = await Category.findOne({ slug: categorySlug }).lean();
-
-      if (!categoryDoc) {
-        return res.status(404).json({ message: 'Category not found' });
-      }
-
-      filter.category = categorySlug;
-    }
-
-    // Exclude the current product if productSlug is passed
-    if (productSlug) {
-      filter.slug = { $ne: productSlug };
-    }
-
-    // Fetch products by filter
-    const products = await Product.find(filter)
-      .select('productName slug category subCategory price image seo')
-      .lean();
-
-    // Compose meta info
-    let metaInfo = {};
-
-    if (subCategoryDoc) {
-      metaInfo = {
-        title: subCategoryDoc.title || subCategoryDoc.name,
-        description: subCategoryDoc.description,
-        image: subCategoryDoc.image,
-        seo: subCategoryDoc.seo,
-        category: {
-          title: categoryDoc.name,
-          slug: categoryDoc.slug
+        if (!category) {
+            return res.status(404).json({
+                success: false,
+                message: "Category not found",
+            });
         }
-      };
-    } else if (categoryDoc) {
-      metaInfo = {
-        title: categoryDoc.title || categoryDoc.name,
-        description: categoryDoc.description,
-        image: categoryDoc.image,
-        seo: categoryDoc.seo,
-      };
+
+        const products = await Product.find({
+            category: category._id,
+            isActive: true,
+        });
+
+        res.status(200).json({
+            success: true,
+
+            category: {
+                _id: category._id,
+                name: category.name,
+                slug: category.slug,
+                image: category.image,
+                title: category.Title,
+                description: category.Description,
+                seo: category.seo,
+            },
+
+            count: products.length,
+            products,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
     }
+};
 
-    res.json({
-      meta: metaInfo,
-      products,
-    });
+// =====================================
+// PRODUCTS BY SUBCATEGORY
+// =====================================
 
-  } catch (error) {
-    console.error('Error fetching products by category/subcategory:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+exports.getProductsBySubCategory =
+    async (req, res) => {
+        console.log('enetered', req.params.slug);
 
-exports.getProduct = catchAsyncError(async (req, res, next) => {
-    const { productId } = req.params;
-    const data = await Product.findOne({ slug: productId });
+        try {
+            const subCategory =
+                await SubCategory.findOne({
+                    slug: req.params.slug,
+                }).select("name slug Title Description seo");;
 
-    if (!data) {
-        return next(new ErrorHandler('Product not found', 400));
-    }
+            if (!subCategory) {
+                return res.status(404).json({
+                    success: false,
+                    message:
+                        "Subcategory not found",
+                });
+            }
 
-    res.status(201).json({
-        success: true,
-        data
-    })
-})
+
+            const products =
+                await Product.find({
+                    subCategory:
+                        subCategory._id,
+                    isActive: true,
+                });
+
+            res.status(200).json({
+                success: true,
+
+                category: {
+                    _id: subCategory._id,
+                    name: subCategory.name,
+                    slug: subCategory.slug,
+                    image: subCategory.image,
+                    title: subCategory.Title,
+                    description: subCategory.Description,
+                    seo: subCategory.seo,
+                },
+                count: products.length,
+                products,
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    };
+
+// =====================================
+// PRODUCTS BY BRAND
+// =====================================
+
+exports.getProductsByBrand =
+    async (req, res) => {
+        try {
+            const brand =
+                await Brand.findOne({
+                    slug: req.params.slug,
+                });
+
+            if (!brand) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Brand not found",
+                });
+            }
+
+            const products =
+                await Product.find({
+                    brand: brand._id,
+                    isActive: true,
+                });
+
+            res.status(200).json({
+                success: true,
+                count: products.length,
+                data: products,
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    };
+
+// =====================================
+// FEATURED PRODUCTS
+// =====================================
+
+exports.getFeaturedProducts =
+    async (req, res) => {
+        try {
+            const products =
+                await Product.find({
+                    isFeatured: true,
+                    isActive: true,
+                }).sort({
+                    createdAt: -1,
+                });
+
+            res.status(200).json({
+                success: true,
+                count: products.length,
+                data: products,
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    };
+
+// =====================================
+// TOGGLE STATUS
+// =====================================
+
+exports.toggleProductStatus =
+    async (req, res) => {
+        try {
+            const product =
+                await Product.findById(
+                    req.params.id
+                );
+
+            if (!product) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Product not found",
+                });
+            }
+
+            product.isActive =
+                !product.isActive;
+
+            await product.save();
+
+            res.status(200).json({
+                success: true,
+                message:
+                    product.isActive
+                        ? "Product activated"
+                        : "Product deactivated",
+                data: product,
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    };
+
+// =====================================
+// TOGGLE FEATURED
+// =====================================
+
+exports.toggleFeaturedProduct =
+    async (req, res) => {
+        try {
+            const product =
+                await Product.findById(
+                    req.params.id
+                );
+
+            if (!product) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Product not found",
+                });
+            }
+
+            product.isFeatured =
+                !product.isFeatured;
+
+            await product.save();
+
+            res.status(200).json({
+                success: true,
+                message:
+                    product.isFeatured
+                        ? "Product featured"
+                        : "Product unfeatured",
+                data: product,
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    };
+
+// =====================================
+// DELETE PRODUCT
+// =====================================
+
+exports.deleteProduct =
+    async (req, res) => {
+        try {
+            const product =
+                await Product.findById(
+                    req.params.id
+                );
+
+            if (!product) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Product not found",
+                });
+            }
+
+            await product.deleteOne();
+
+            res.status(200).json({
+                success: true,
+                message:
+                    "Product deleted successfully",
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    };

@@ -1,31 +1,64 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const orderItemSchema = new mongoose.Schema({
-  productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-  productName: { type: String, required: true },
-  image: { type: String },
-  price: { type: Number },
-  qty: { type: Number },
-});
+const orderSchema = new mongoose.Schema(
+  {
+    customer: {
+      name: { type: String, required: true, trim: true },
+      phone: { type: String, required: true, trim: true },
+      email: { type: String, default: "", trim: true },
+      address: { type: String, required: true, trim: true },
+    },
 
-const orderSchema = mongoose.Schema({
-   orderNumber: { type: String, required: true, unique: true },
-    items: [orderItemSchema],
-    customerName: { type: String, required: true },
-    customerEmail: { type: String, required: true },
-    customerPhone: { type: String, required: true },
-    shippingAddress: { type: String, required: true },
-    status: {
+    items: [
+      {
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+          default: null,
+        },
+        name: { type: String, required: true },
+        image: { type: String, default: "" },
+        qty: { type: Number, required: true, min: 1 },
+        price: { type: Number, default: 0 },
+      },
+    ],
+
+    total: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    orderStatus: {
       type: String,
-      enum: ["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"],
+      enum: [
+        "Pending",
+        "Confirmed",
+        "Processing",
+        "Shipped",
+        "Delivered",
+        "Cancelled",
+      ],
       default: "Pending",
     },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    }
-})
 
-let orderModel = mongoose.model('Order', orderSchema);
+    orderNumber: {
+      type: String,
+      unique: true,
+      index: true,
+      default: null,
+    },
+  },
+  { timestamps: true }
+);
 
-module.exports = orderModel;
+// AUTO ORDER NUMBER
+orderSchema.pre("save", function (next) {
+  if (!this.orderNumber) {
+    this.orderNumber =
+      "ORD-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+  }
+  next();
+});
+
+module.exports = mongoose.model("Order", orderSchema);

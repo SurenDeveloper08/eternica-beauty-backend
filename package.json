@@ -1,7 +1,7 @@
 {
-  "name": "eternicabeauty",
+  "name": "nexprint",
   "version": "1.0.0",
-  "description": "eternica beauty ecommerce using MERN stack",
+  "description": "nexprint website using MERN stack",
   "main": "server.js",
   "scripts": {
     "start": "nodemon backend/server.js",

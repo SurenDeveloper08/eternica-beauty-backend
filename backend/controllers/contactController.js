@@ -1,35 +1,101 @@
-const catchAsyncError = require('../middlewares/catchAsyncError');
-const Contact = require('../models/contact');
-const sendContactEmail = require('../utils/email');
+const Contact = require("../models/Contact");
 
-exports.Contact = catchAsyncError(async (req, res, next) => {
-
+// CREATE CONTACT
+exports.createContact = async (req, res) => {
   try {
     const { name, email, phone, subject, message } = req.body;
+    console.log(req.body);
 
-    // Save form submission to MongoDB
-    const newContact = new Contact({ name, email, phone, subject, message });
-    await newContact.save();
+    if (!name || !email || !phone || !subject || !message) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
 
-    res.status(200).json({ success: true, message: 'Message sent and stored successfully!' });
+    const contact = await Contact.create({
+      name,
+      email,
+      phone,
+      subject,
+      message,
+    });
 
-    await sendContactEmail(process.env.ADMIN_EMAIL1, name, email, phone, subject, message);
-    await sendContactEmail(process.env.ADMIN_EMAIL2, name, email, phone, subject, message);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Server error, try again later.' });
-    
-  }
-});
-
-exports.getContacts = catchAsyncError(async (req, res, next) => {
-  try {
-    const data = await Newsletter.find().sort({ subscribedAt: -1 });
     res.status(201).json({
       success: true,
-      data
-    })
+      message: "Message sent successfully",
+      data: contact,
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
-})
+};
+
+// GET ALL CONTACTS (Admin)
+exports.getAllContacts = async (req, res) => {
+  try {
+    const contacts = await Contact.find().sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: contacts.length,
+      data: contacts,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// GET SINGLE CONTACT
+exports.getContactById = async (req, res) => {
+  try {
+    const contact = await Contact.findById(req.params.id);
+
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: "Contact not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: contact,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// DELETE CONTACT
+exports.deleteContact = async (req, res) => {
+  try {
+    const contact = await Contact.findByIdAndDelete(req.params.id);
+
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: "Contact not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Contact deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

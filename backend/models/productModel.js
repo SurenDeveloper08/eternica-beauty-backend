@@ -1,88 +1,308 @@
+// models/productModel.js
+
 const mongoose = require("mongoose");
-const slugify = require('slugify');
+const slugify = require("slugify");
 
-const specificationSchema = new mongoose.Schema({
-    key: String,
-    value: String,
-});
+// =====================================
+// SPECIFICATION SCHEMA
+// =====================================
 
-const seoSchema = new mongoose.Schema({
-    metaTitle: { type: String },
-    metaDescription: { type: String },
-    metaKeywords: { type: String },
-    canonicalUrl: { type: String }
-});
+const specificationSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      trim: true,
+    },
 
-const productSchema = new mongoose.Schema({
-    productName: { type: String, required: true },
-    slug: { type: String, unique: true, index: true },
-    category: { type: String, required: true },
-    subCategory: { type: String, default: null },
-    description: { type: String },
-    features: [{ type: String }],
-    whyChoose: [{ type: String }],
-    instructions: [{ type: String }],
-    overview: { type: String },
-    specifications: [specificationSchema],
-    stock: { type: Number },
-    deliveryDays: { type: Number },
-    price: { type: Number },
-    oldPrice: { type: Number },
-    image: { type: String },
-    brand: { type: String},
-    variants: [
-        {
-            color: String,
-            colorCode: String,     // optional hex or image
-            images: [String],      // images for this color variant
-            longImages: [String],
-            sizes: [
-                {
-                    name: String,
-                    price: Number,
-                    stock: Number,
-                    images: [String],    // optional size-specific images
-                    longImages: [String],
-                }
-            ],
-            price: Number,         // optional: price for color-only variant
-            stock: Number          // optional: stock for color-only variant
-        }
+    value: {
+      type: String,
+      trim: true,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
+// =====================================
+// PRODUCT SCHEMA
+// =====================================
+
+const productSchema = new mongoose.Schema(
+  {
+    // BASIC INFO
+
+    name: {
+      type: String,
+      required: [true, "Product name is required"],
+      trim: true,
+      maxlength: 200,
+      unique: true,
+    },
+
+    slug: {
+      type: String,
+      unique: true,
+      lowercase: true,
+      index: true,
+    },
+
+    shortDescription: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+      default: "",
+    },
+
+    description: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    // RELATIONS
+
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
+
+    subCategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubCategory",
+    },
+
+    brand: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Brand",
+        },
+
+    // SKU
+
+    sku: {
+      type: String,
+      unique: true,
+      uppercase: true,
+      trim: true,
+    },
+
+    // PRICING
+
+    price: {
+      type: Number,
+      min: 0,
+    },
+
+    salePrice: {
+      type: Number,
+      min: 0,
+
+      validate: {
+        validator: function (value) {
+          return !value || value <= this.price;
+        },
+
+        message:
+          "Sale price cannot be greater than price",
+      },
+    },
+
+    // STOCK
+
+    stock: {
+      type: Number,
+     default: 0,
+      min: 0,
+    },
+
+    lowStockAlert: {
+      type: Number,
+      default: 5,
+    },
+
+    // IMAGES
+
+    image: {
+      type: String,
+      required: true,
+    },
+
+    images: [
+      {
+        type: String,
+      },
     ],
-    images: [{
-        image: {
-            type: String,
-            required: true
-        }
-    }],
-    longImages: [{ type: String }],
-    sellGlobally: { type: Boolean, default: true },
-    restrictedCountries: [String], // ['SA', 'IR']      
-    allowedCountries: [String],    // used if sellGlobally is false
-    isActive: { type: Boolean, default: true },
-    seo: seoSchema,
-}, { timestamps: true });
 
-productSchema.pre('validate', async function (next) {
-    if (!this.isModified('productName')) return next();
+    // SPECIFICATIONS
 
-    if (this.productName) {
-        let baseSlug = slugify(this.productName, { lower: true, strict: true });
-        let slug = baseSlug;
-        let counter = 1;
+    specifications: [specificationSchema],
 
-        while (await this.constructor.exists({ slug, _id: { $ne: this._id } })) {
-            slug = `${baseSlug}-${counter}`;
-            counter++;
-        }
+    // FEATURES
 
-        console.log(`Setting slug to: ${slug} for productName: ${this.productName}`);
+    features: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
 
-        this.slug = slug;
+    // TAGS
+
+    tags: [
+      {
+        type: String,
+        trim: true,
+        lowercase: true,
+      },
+    ],
+
+    // STATUS
+
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+
+    // SEO
+
+    seo: {
+      metaTitle: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+
+      metaDescription: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+
+      metaKeywords: [
+        {
+          type: String,
+          trim: true,
+        },
+      ],
+
+      canonicalUrl: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// =====================================
+// AUTO GENERATE UNIQUE SLUG
+// =====================================
+
+productSchema.pre(
+  "save",
+  async function (next) {
+
+    if (!this.isModified("name")) {
+      return next();
     }
+
+    const baseSlug = slugify(
+      this.name,
+      {
+        lower: true,
+        strict: true,
+        trim: true,
+      }
+    );
+
+    let slug = baseSlug;
+
+    let counter = 1;
+
+    while (
+      await mongoose.models.Product.findOne({
+        slug,
+        _id: { $ne: this._id },
+      })
+    ) {
+
+      slug = `${baseSlug}-${counter}`;
+
+      counter++;
+
+    }
+
+    this.slug = slug;
+
     next();
+
+  }
+);
+
+// =====================================
+// STOCK STATUS VIRTUAL
+// =====================================
+
+productSchema.virtual(
+  "stockStatus"
+).get(function () {
+
+  if (this.stock <= 0)
+    return "Out of Stock";
+
+  if (
+    this.stock <= this.lowStockAlert
+  ) {
+    return "Low Stock";
+  }
+
+  return "In Stock";
+
 });
 
+// =====================================
+// INDEXES
+// =====================================
 
-//routes
-module.exports = mongoose.model("Product", productSchema);
+productSchema.index({
+  name: "text",
+});
+
+productSchema.index({
+  slug: 1,
+});
+
+productSchema.index({
+  category: 1,
+});
+
+productSchema.index({
+  subCategory: 1,
+});
+
+productSchema.index({
+  brand: 1,
+});
+
+productSchema.index({
+  isFeatured: 1,
+});
+
+productSchema.index({
+  isActive: 1,
+});
+
+module.exports =
+  mongoose.model(
+    "Product",
+    productSchema
+  );

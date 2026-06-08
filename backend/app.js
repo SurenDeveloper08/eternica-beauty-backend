@@ -8,10 +8,42 @@ const cors = require('cors');
 
 dotenv.config({ path: path.join(__dirname, "config/config.env") });
 
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
-}));
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://eternicabeauty.com",
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+
+      // allow requests with no origin
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (
+        allowedOrigins.includes(origin)
+      ) {
+
+        callback(null, true);
+
+      } else {
+
+        callback(
+          new Error(
+            "Not allowed by CORS"
+          )
+        );
+
+      }
+
+    },
+
+    credentials: true,
+
+  })
+);
 
 // Also needed:
 app.use(express.json())
@@ -22,8 +54,12 @@ app.set('trust proxy', true);
 const products = require('./routes/product')
 const auth = require('./routes/auth')
 const order = require('./routes/order')
+const hero = require('./routes/hero')
 const payment = require('./routes/payment')
 const category = require('./routes/category')
+const service = require('./routes/service')
+const subCategory = require('./routes/subCategory')
+const brand = require('./routes/brand')
 const banner = require('./routes/banner')
 const ad = require('./routes/ad')
 const poster = require('./routes/poster')
@@ -43,6 +79,10 @@ const page = require('./routes/page')
 
 app.use('/api/v1/', products);
 app.use('/api/v1/', category);
+app.use('/api/v1/', subCategory);
+app.use('/api/v1/', brand);
+app.use('/api/v1/', hero);
+app.use('/api/v1/', service);
 app.use('/api/v1/', auth);
 app.use('/api/v1/', banner);
 app.use('/api/v1/', ad);

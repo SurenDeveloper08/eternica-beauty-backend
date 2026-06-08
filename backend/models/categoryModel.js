@@ -1,38 +1,150 @@
-const mongoose = require('mongoose');
+// models/categoryModel.js
 
-const seoSchema = new mongoose.Schema({
-  metaTitle: { type: String },
-  metaDescription: { type: String },
-  metaKeywords: { type: String },
-  canonicalUrl: { type: String }
-});
+const mongoose = require("mongoose");
+const slugify = require("slugify");
 
-const subCategorySchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  slug: { type: String, required: true, lowercase: true, trim: true },
-  title: { type: String },
-  description: { type: String },
-  image: { type: String },
-  isActive: { type: Boolean, default: true },
-  sortOrder: { type: Number, default: 0 },
-  showOnHome: { type: Boolean, default: false },
-  seo: seoSchema,
-});
+const categorySchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "Category name is required"],
+      trim: true,
+      unique: true,
+    },
 
-const categorySchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
-  slug: { type: String, required: true, unique: true, lowercase: true },
-  title: { type: String, required: true },
-  description: { type: String, required: true },
-  image: { type: String },
-  isActive: { type: Boolean, default: true },
-  sortOrder: { type: Number, default: 0 },
-  subcategories: {
-    type: [subCategorySchema],
-    default: []
+    slug: {
+      type: String,
+      unique: true,
+      lowercase: true,
+      index: true,
+    },
+
+    image: {
+      type: String,
+      default: "",
+    },
+
+    Title: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    Description: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+
+    seo: {
+      metaTitle: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+
+      metaDescription: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+
+      metaKeywords: [
+        {
+          type: String,
+          trim: true,
+        },
+      ],
+
+      canonicalUrl: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+    },
   },
-  seo: seoSchema,
-}, { timestamps: true });
+  {
+    timestamps: true,
+  }
+);
 
-const Category = mongoose.model('Category', categorySchema);
-module.exports = Category;
+// =====================================
+// AUTO GENERATE UNIQUE SLUG
+// =====================================
+
+categorySchema.pre(
+  "save",
+  async function (next) {
+
+    if (!this.isModified("name")) {
+      return next();
+    }
+
+    const baseSlug = slugify(
+      this.name,
+      {
+        lower: true,
+        strict: true,
+        trim: true,
+      }
+    );
+
+    let slug = baseSlug;
+
+    let counter = 1;
+
+    while (
+      await mongoose.models.Category.findOne({
+        slug,
+        _id: { $ne: this._id },
+      })
+    ) {
+
+      slug = `${baseSlug}-${counter}`;
+
+      counter++;
+
+    }
+
+    this.slug = slug;
+
+    next();
+
+  }
+);
+
+// =====================================
+// INDEXES
+// =====================================
+
+categorySchema.index({
+  name: "text",
+});
+
+categorySchema.index({
+  slug: 1,
+});
+
+categorySchema.index({
+  isFeatured: 1,
+});
+
+categorySchema.index({
+  isActive: 1,
+});
+
+module.exports =
+  mongoose.model(
+    "Category",
+    categorySchema
+  );
